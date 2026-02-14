@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S-IMSY Reporting API - Documentation</title>
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { display: ['Space Grotesk', 'sans-serif'], body: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+      colors: {
+        simsy: {
+          blue: '#0ea5e9', 'blue-deep': '#0369a1', cyan: '#22d3ee',
+          purple: '#8b5cf6', green: '#10b981', orange: '#f59e0b',
+          dark: '#0a0e1a', navy: '#111827', surface: '#1e293b',
+          'surface-light': '#283548', 'grey-dark': '#334155',
+          grey: '#94a3b8', white: '#f8fafc',
+        },
+        method: {
+          get: '#10b981', post: '#3b82f6', put: '#f59e0b', delete: '#ef4444',
+          'get-bg': '#10b98115', 'post-bg': '#3b82f615', 'put-bg': '#f59e0b15', 'delete-bg': '#ef444415',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .font-display { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .glass { background: rgba(30,41,59,0.6); backdrop-filter: blur(20px); border: 1px solid rgba(51,65,85,0.4); }
+  .glass-card { background: rgba(30,41,59,0.4); border: 1px solid rgba(51,65,85,0.3); }
+  .animated-grid { background-image: linear-gradient(rgba(14,165,233,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(14,165,233,0.02) 1px, transparent 1px); background-size: 60px 60px; }
+  .endpoint-card { transition: all 0.2s ease; }
+  .endpoint-card:hover { background: rgba(30,41,59,0.6); }
+  .endpoint-card .expand-icon { transition: transform 0.2s ease; }
+  .endpoint-card.open .expand-icon { transform: rotate(180deg); }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0a0e1a; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  pre code { font-size: 12px; line-height: 1.6; }
+  .tab-active { background: rgba(14,165,233,0.12); color: #0ea5e9; border-bottom: 2px solid #0ea5e9; }
+</style>
+</head>
+<body class="min-h-screen bg-simsy-dark animated-grid text-simsy-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="fixed top-0 left-0 right-0 z-50 h-14 bg-simsy-navy/90 backdrop-blur-xl border-b border-simsy-grey-dark/30">
+    <div class="flex items-center justify-between h-full px-6">
+      <div class="flex items-center gap-3">
+        <a href="dashboard.html" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-simsy-blue to-simsy-cyan flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <span class="font-display font-bold text-sm text-simsy-white">S-IMSY Reporting API</span>
+        </a>
+        <span class="ml-2 px-2 py-0.5 rounded-md text-xs font-medium bg-simsy-green/10 text-simsy-green border border-simsy-green/20">v1.0</span>
+        <span class="ml-1 px-2 py-0.5 rounded-md text-xs font-medium bg-simsy-blue/10 text-simsy-blue border border-simsy-blue/20">OpenAPI 3.0</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="dashboard.html" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-simsy-grey hover:text-simsy-white hover:bg-simsy-surface transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"/></svg>
+          Dashboard
+        </a>
+        <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-simsy-surface border border-simsy-grey-dark/40 text-simsy-grey hover:text-simsy-white transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Download YAML
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="pt-14 max-w-6xl mx-auto px-6 py-8">
+    <!-- API Header -->
+    <div class="mb-8">
+      <h1 class="font-display text-3xl font-bold text-simsy-white mb-2">S-IMSY Reporting API</h1>
+      <p class="text-simsy-grey text-sm max-w-2xl">RESTful API for accessing tenant-scoped reporting data including usage records, active bundles, bundle instances, and endpoint information. All data is automatically scoped to your tenant via Cloudflare Access service tokens.</p>
+
+      <!-- Base URL -->
+      <div class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-simsy-surface border border-simsy-grey-dark/40">
+        <span class="text-xs text-simsy-grey font-medium">BASE URL</span>
+        <code class="font-mono text-sm text-simsy-cyan">https://simsy-reporting-api.jim-42e.workers.dev/api/v1</code>
+        <button class="ml-2 text-simsy-grey hover:text-simsy-white transition-colors" title="Copy">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Authentication Section -->
+    <div class="glass-card rounded-2xl p-6 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-8 h-8 rounded-lg bg-simsy-orange/10 flex items-center justify-center">
+          <svg class="w-4 h-4 text-simsy-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+        <h2 class="font-display text-lg font-semibold text-simsy-white">Authentication</h2>
+      </div>
+      <p class="text-sm text-simsy-grey mb-4">All requests must include Cloudflare Access service token headers. Your tenant is automatically identified from the token.</p>
+      <div class="bg-simsy-dark/60 rounded-xl p-4 border border-simsy-grey-dark/30">
+        <pre class="font-mono text-xs"><code><span class="text-simsy-grey"># Required headers for all requests</span>
+<span class="text-simsy-purple">CF-Access-Client-Id:</span> <span class="text-simsy-cyan">&lt;your-client-id&gt;</span>
+<span class="text-simsy-purple">CF-Access-Client-Secret:</span> <span class="text-simsy-cyan">&lt;your-client-secret&gt;</span>
+<span class="text-simsy-purple">Content-Type:</span> <span class="text-simsy-cyan">application/json</span></code></pre>
+      </div>
+    </div>
+
+    <!-- Endpoints Sections -->
+    <div class="space-y-4">
+
+      <!-- USAGE REPORTS Section -->
+      <div class="mb-2">
+        <h2 class="font-display text-lg font-semibold text-simsy-white flex items-center gap-2 mb-3">
+          <svg class="w-5 h-5 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Usage Reports
+        </h2>
+      </div>
+
+      <!-- GET /usage/summary -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep1">
+        <button onclick="toggleEndpoint('ep1')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-get-bg text-method-get border border-method-get/20 uppercase w-16 text-center">GET</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/usage/summary</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">Get usage summary with aggregations</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep1-detail">
+          <p class="text-sm text-simsy-grey mb-4">Returns aggregated usage data for the authenticated tenant. Supports time-based filtering and grouping.</p>
+
+          <h4 class="text-xs font-semibold text-simsy-grey-dark uppercase tracking-wider mb-2">Parameters</h4>
+          <div class="space-y-2 mb-4">
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">from</code>
+              <div>
+                <span class="text-xs text-simsy-orange">string (ISO 8601)</span>
+                <span class="text-xs text-simsy-grey ml-2">· query · optional</span>
+                <p class="text-xs text-simsy-grey mt-1">Start date for the report period. Default: 30 days ago.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">to</code>
+              <div>
+                <span class="text-xs text-simsy-orange">string (ISO 8601)</span>
+                <span class="text-xs text-simsy-grey ml-2">· query · optional</span>
+                <p class="text-xs text-simsy-grey mt-1">End date for the report period. Default: now.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">group_by</code>
+              <div>
+                <span class="text-xs text-simsy-orange">string</span>
+                <span class="text-xs text-simsy-grey ml-2">· query · optional</span>
+                <p class="text-xs text-simsy-grey mt-1">Grouping period: <code class="text-simsy-purple">daily</code>, <code class="text-simsy-purple">monthly</code>, or <code class="text-simsy-purple">annual</code>. Default: daily.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabs: Response / Example -->
+          <div class="flex gap-0 border-b border-simsy-grey-dark/30 mb-3">
+            <button class="px-4 py-2 text-xs font-medium tab-active" onclick="showTab('ep1','response')">Response 200</button>
+            <button class="px-4 py-2 text-xs font-medium text-simsy-grey hover:text-simsy-white" onclick="showTab('ep1','example')">Example</button>
+          </div>
+
+          <div id="ep1-response" class="bg-simsy-dark/60 rounded-xl p-4 border border-simsy-grey-dark/30 overflow-x-auto">
+            <pre class="font-mono text-xs"><code>{
+  <span class="text-simsy-cyan">"tenant"</span>: <span class="text-simsy-green">"Allsee Technologies Limited"</span>,
+  <span class="text-simsy-cyan">"period"</span>: { <span class="text-simsy-cyan">"from"</span>: <span class="text-simsy-green">"2025-09-01T00:00:00Z"</span>, <span class="text-simsy-cyan">"to"</span>: <span class="text-simsy-green">"2025-10-01T00:00:00Z"</span> },
+  <span class="text-simsy-cyan">"summary"</span>: {
+    <span class="text-simsy-cyan">"total_data_mb"</span>: <span class="text-simsy-orange">2457600</span>,
+    <span class="text-simsy-cyan">"total_records"</span>: <span class="text-simsy-orange">45823</span>,
+    <span class="text-simsy-cyan">"active_endpoints"</span>: <span class="text-simsy-orange">1293</span>
+  },
+  <span class="text-simsy-cyan">"data"</span>: [
+    { <span class="text-simsy-cyan">"date"</span>: <span class="text-simsy-green">"2025-09-01"</span>, <span class="text-simsy-cyan">"data_mb"</span>: <span class="text-simsy-orange">78450</span>, <span class="text-simsy-cyan">"records"</span>: <span class="text-simsy-orange">1523</span> },
+    { <span class="text-simsy-cyan">"date"</span>: <span class="text-simsy-green">"2025-09-02"</span>, <span class="text-simsy-cyan">"data_mb"</span>: <span class="text-simsy-orange">82100</span>, <span class="text-simsy-cyan">"records"</span>: <span class="text-simsy-orange">1601</span> }
+  ]
+}</code></pre>
+          </div>
+          <div id="ep1-example" class="hidden bg-simsy-dark/60 rounded-xl p-4 border border-simsy-grey-dark/30 overflow-x-auto">
+            <pre class="font-mono text-xs"><code><span class="text-simsy-grey"># Get monthly usage for Q3 2025</span>
+<span class="text-simsy-green">curl</span> -X GET \
+  <span class="text-simsy-cyan">"https://simsy-reporting-api.jim-42e.workers.dev/api/v1/usage/summary?from=2025-07-01&to=2025-10-01&group_by=monthly"</span> \
+  -H <span class="text-simsy-green">"CF-Access-Client-Id: $CLIENT_ID"</span> \
+  -H <span class="text-simsy-green">"CF-Access-Client-Secret: $CLIENT_SECRET"</span></code></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- GET /usage/records -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep2">
+        <button onclick="toggleEndpoint('ep2')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-get-bg text-method-get border border-method-get/20 uppercase w-16 text-center">GET</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/usage/records</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">List usage records with pagination</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep2-detail">
+          <p class="text-sm text-simsy-grey mb-4">Returns paginated usage records for the authenticated tenant. Supports filtering by ICCID, date range, and endpoint.</p>
+          <h4 class="text-xs font-semibold text-simsy-grey-dark uppercase tracking-wider mb-2">Parameters</h4>
+          <div class="space-y-2 mb-4">
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">iccid</code>
+              <div><span class="text-xs text-simsy-orange">string</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span><p class="text-xs text-simsy-grey mt-1">Filter by specific ICCID.</p></div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">page</code>
+              <div><span class="text-xs text-simsy-orange">integer</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span><p class="text-xs text-simsy-grey mt-1">Page number (default: 1). Each page returns 100 records.</p></div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">from</code>
+              <div><span class="text-xs text-simsy-orange">string (ISO 8601)</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span></div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">to</code>
+              <div><span class="text-xs text-simsy-orange">string (ISO 8601)</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUNDLES Section -->
+      <div class="mt-8 mb-2">
+        <h2 class="font-display text-lg font-semibold text-simsy-white flex items-center gap-2 mb-3">
+          <svg class="w-5 h-5 text-simsy-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Active Bundles
+        </h2>
+      </div>
+
+      <!-- GET /bundles -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep3">
+        <button onclick="toggleEndpoint('ep3')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-get-bg text-method-get border border-method-get/20 uppercase w-16 text-center">GET</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/bundles</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">List active bundles</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep3-detail">
+          <p class="text-sm text-simsy-grey mb-4">Returns all active bundles for the authenticated tenant with status breakdown and pagination.</p>
+          <h4 class="text-xs font-semibold text-simsy-grey-dark uppercase tracking-wider mb-2">Parameters</h4>
+          <div class="space-y-2 mb-4">
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">status</code>
+              <div><span class="text-xs text-simsy-orange">string</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span><p class="text-xs text-simsy-grey mt-1">Filter by status: <code class="text-simsy-purple">active</code>, <code class="text-simsy-purple">provisioning</code>, <code class="text-simsy-purple">expiring</code>, <code class="text-simsy-purple">expired</code></p></div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">page</code>
+              <div><span class="text-xs text-simsy-orange">integer</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span><p class="text-xs text-simsy-grey mt-1">Page number (default: 1)</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GET /bundles/:id -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep4">
+        <button onclick="toggleEndpoint('ep4')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-get-bg text-method-get border border-method-get/20 uppercase w-16 text-center">GET</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/bundles/{bundle_id}</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">Get bundle details</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep4-detail">
+          <p class="text-sm text-simsy-grey">Returns full details of a specific bundle, including all associated instances and usage data.</p>
+        </div>
+      </div>
+
+      <!-- BUNDLE INSTANCES Section -->
+      <div class="mt-8 mb-2">
+        <h2 class="font-display text-lg font-semibold text-simsy-white flex items-center gap-2 mb-3">
+          <svg class="w-5 h-5 text-simsy-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+          Bundle Instances
+        </h2>
+      </div>
+
+      <!-- GET /bundle-instances -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep5">
+        <button onclick="toggleEndpoint('ep5')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-get-bg text-method-get border border-method-get/20 uppercase w-16 text-center">GET</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/bundle-instances</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">List bundle instances with filters</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep5-detail">
+          <p class="text-sm text-simsy-grey mb-4">Returns bundle instances for the tenant. Filterable by ICCID, bundle, status, and date range.</p>
+          <h4 class="text-xs font-semibold text-simsy-grey-dark uppercase tracking-wider mb-2">Parameters</h4>
+          <div class="space-y-2">
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">iccid</code>
+              <div><span class="text-xs text-simsy-orange">string</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span><p class="text-xs text-simsy-grey mt-1">Filter by ICCID</p></div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">bundle_id</code>
+              <div><span class="text-xs text-simsy-orange">string</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span><p class="text-xs text-simsy-grey mt-1">Filter by bundle ID</p></div>
+            </div>
+            <div class="flex items-start gap-3 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+              <code class="font-mono text-xs text-simsy-cyan mt-0.5">status</code>
+              <div><span class="text-xs text-simsy-orange">string</span><span class="text-xs text-simsy-grey ml-2">· query · optional</span><p class="text-xs text-simsy-grey mt-1">Status filter: <code class="text-simsy-purple">active</code>, <code class="text-simsy-purple">completed</code>, <code class="text-simsy-purple">pending</code></p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENDPOINTS Section -->
+      <div class="mt-8 mb-2">
+        <h2 class="font-display text-lg font-semibold text-simsy-white flex items-center gap-2 mb-3">
+          <svg class="w-5 h-5 text-simsy-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+          Endpoints
+        </h2>
+      </div>
+
+      <!-- GET /endpoints -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep6">
+        <button onclick="toggleEndpoint('ep6')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-get-bg text-method-get border border-method-get/20 uppercase w-16 text-center">GET</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/endpoints</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">List all endpoints for tenant</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep6-detail">
+          <p class="text-sm text-simsy-grey">Returns all endpoints associated with the authenticated tenant, including status and usage summary.</p>
+        </div>
+      </div>
+
+      <!-- GET /endpoints/:id/usage -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep7">
+        <button onclick="toggleEndpoint('ep7')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-get-bg text-method-get border border-method-get/20 uppercase w-16 text-center">GET</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/endpoints/{endpoint_id}/usage</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">Get usage data for specific endpoint</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep7-detail">
+          <p class="text-sm text-simsy-grey">Returns usage data filtered to a specific endpoint. Supports date range and grouping parameters.</p>
+        </div>
+      </div>
+
+      <!-- EXPORT Section -->
+      <div class="mt-8 mb-2">
+        <h2 class="font-display text-lg font-semibold text-simsy-white flex items-center gap-2 mb-3">
+          <svg class="w-5 h-5 text-simsy-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Data Export
+        </h2>
+      </div>
+
+      <!-- POST /export -->
+      <div class="glass-card rounded-2xl overflow-hidden endpoint-card" id="ep8">
+        <button onclick="toggleEndpoint('ep8')" class="w-full flex items-center gap-3 p-4 text-left">
+          <span class="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-method-post-bg text-method-post border border-method-post/20 uppercase w-16 text-center">POST</span>
+          <code class="font-mono text-sm text-simsy-white flex-1">/export</code>
+          <span class="text-xs text-simsy-grey hidden sm:block">Generate CSV/JSON export</span>
+          <svg class="w-4 h-4 text-simsy-grey expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="hidden border-t border-simsy-grey-dark/20 p-4 bg-simsy-dark/30" id="ep8-detail">
+          <p class="text-sm text-simsy-grey mb-4">Generate a bulk data export in CSV or JSON format. Returns a download URL valid for 1 hour.</p>
+          <h4 class="text-xs font-semibold text-simsy-grey-dark uppercase tracking-wider mb-2">Request Body</h4>
+          <div class="bg-simsy-dark/60 rounded-xl p-4 border border-simsy-grey-dark/30 overflow-x-auto">
+            <pre class="font-mono text-xs"><code>{
+  <span class="text-simsy-cyan">"report_type"</span>: <span class="text-simsy-green">"usage"</span>,        <span class="text-simsy-grey">// "usage" | "bundles" | "instances" | "endpoints"</span>
+  <span class="text-simsy-cyan">"format"</span>: <span class="text-simsy-green">"csv"</span>,              <span class="text-simsy-grey">// "csv" | "json"</span>
+  <span class="text-simsy-cyan">"from"</span>: <span class="text-simsy-green">"2025-01-01T00:00:00Z"</span>,
+  <span class="text-simsy-cyan">"to"</span>: <span class="text-simsy-green">"2025-10-01T00:00:00Z"</span>,
+  <span class="text-simsy-cyan">"filters"</span>: {
+    <span class="text-simsy-cyan">"iccid"</span>: <span class="text-simsy-green">"8944..."</span>,       <span class="text-simsy-grey">// optional</span>
+    <span class="text-simsy-cyan">"endpoint_id"</span>: <span class="text-simsy-green">"ep-123"</span>  <span class="text-simsy-grey">// optional</span>
+  }
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Rate Limiting Notice -->
+    <div class="mt-8 glass-card rounded-2xl p-5">
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-lg bg-simsy-orange/10 flex items-center justify-center flex-shrink-0">
+          <svg class="w-4 h-4 text-simsy-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        </div>
+        <div>
+          <h3 class="font-display font-semibold text-simsy-white text-sm">Rate Limiting</h3>
+          <p class="text-sm text-simsy-grey mt-1">API requests are rate-limited to <span class="text-simsy-white font-medium">100 requests per minute</span> per tenant. Export operations count as 5 requests. Rate limit headers are included in all responses:</p>
+          <div class="mt-2 bg-simsy-dark/60 rounded-lg p-3 border border-simsy-grey-dark/30">
+            <code class="font-mono text-xs text-simsy-grey">X-RateLimit-Limit: 100 · X-RateLimit-Remaining: 95 · X-RateLimit-Reset: 1696156800</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Codes -->
+    <div class="mt-4 glass-card rounded-2xl p-5 mb-12">
+      <h3 class="font-display font-semibold text-simsy-white text-sm mb-3">Error Codes</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div class="flex items-center gap-2 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+          <span class="text-xs font-mono font-bold text-simsy-orange">400</span>
+          <span class="text-xs text-simsy-grey">Bad Request — Invalid parameters</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+          <span class="text-xs font-mono font-bold text-red-400">401</span>
+          <span class="text-xs text-simsy-grey">Unauthorized — Invalid or missing token</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+          <span class="text-xs font-mono font-bold text-red-400">403</span>
+          <span class="text-xs text-simsy-grey">Forbidden — Token valid but no tenant access</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+          <span class="text-xs font-mono font-bold text-simsy-purple">429</span>
+          <span class="text-xs text-simsy-grey">Rate Limited — Too many requests</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+          <span class="text-xs font-mono font-bold text-red-400">500</span>
+          <span class="text-xs text-simsy-grey">Server Error — Internal processing error</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-2 bg-simsy-surface/30 rounded-lg">
+          <span class="text-xs font-mono font-bold text-simsy-blue">504</span>
+          <span class="text-xs text-simsy-grey">Timeout — Query took too long</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleEndpoint(id) {
+      const card = document.getElementById(id);
+      const detail = document.getElementById(id + '-detail');
+      card.classList.toggle('open');
+      detail.classList.toggle('hidden');
+    }
+
+    function showTab(epId, tab) {
+      const response = document.getElementById(epId + '-response');
+      const example = document.getElementById(epId + '-example');
+      if (response && example) {
+        response.classList.toggle('hidden', tab !== 'response');
+        example.classList.toggle('hidden', tab !== 'example');
+      }
+    }
+  </script>
+</body>
+</html>

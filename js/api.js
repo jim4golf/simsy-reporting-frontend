@@ -1,0 +1,149 @@
+/**
+ * API client with auth header injection, caching, and error handling.
+ */
+const API = (() => {
+  const cache = new Map();
+
+  function getToken() {
+    return sessionStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+  }
+
+  function buildUrl(path, params) {
+    const url = new URL(CONFIG.API_BASE + path);
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v != null && v !== '') url.searchParams.set(k, v);
+      });
+    }
+    return url.toString();
+  }
+
+  function getCacheKey(url) {
+    return url;
+  }
+
+  function getCached(key) {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.time > CONFIG.CACHE_TTL_MS) {
+      cache.delete(key);
+      return null;
+    }
+    return entry.data;
+  }
+
+  function setCache(key, data) {
+    cache.set(key, { data, time: Date.now() });
+  }
+
+  async function request(method, path, { params, body, skipCache } = {}) {
+    const url = buildUrl(path, params);
+    const token = getToken();
+
+    if (!token) {
+      Auth.logout();
+      throw new Error('Not authenticated');
+    }
+
+    // Check cache for GET requests
+    if (method === 'GET' && !skipCache) {
+      const cached = getCached(getCacheKey(url));
+      if (cached) return cached;
+    }
+
+    const headers = {
+      'CF-Access-Client-Id': token,
+    };
+
+    const fetchOptions = { method, headers };
+
+    if (body) {
+      headers['Content-Type'] = 'application/json';
+      fetchOptions.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, fetchOptions);
+
+    if (response.status === 401 || response.status === 403) {
+      Auth.logout();
+      throw new Error('Authentication failed');
+    }
+
+    if (response.status === 429) {
+      const reset = response.headers.get('X-RateLimit-Reset');
+      throw new Error('Rate limited. Try again ' + (reset ? 'at ' + new Date(reset * 1000).toLocaleTimeString() : 'shortly') + '.');
+    }
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.error || `API error: ${response.status}`);
+    }
+
+    // For export endpoint, return raw response for blob download
+    const contentType = response.headers.get('Content-Type') || '';
+    if (contentType.includes('text/csv') || response.headers.get('Content-Disposition')) {
+      return response;
+    }
+
+    const data = await response.json();
+
+    // Cache GET responses
+    if (method === 'GET') {
+      setCache(getCacheKey(url), data);
+    }
+
+    return data;
+  }
+
+  return {
+    get(path, params, skipCache) {
+      return request('GET', path, { params, skipCache });
+    },
+
+    post(path, body) {
+      return request('POST', path, { body });
+    },
+
+    /**
+     * Fetch a raw response (for file downloads).
+     */
+    async postRaw(path, body) {
+      const url = buildUrl(path);
+      const token = getToken();
+      if (!token) { Auth.logout(); throw new Error('Not authenticated'); }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'CF-Access-Client-Id': token,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.error || `Export failed: ${response.status}`);
+      }
+
+      return response;
+    },
+
+    clearCache() {
+      cache.clear();
+    },
+
+    /**
+     * Validate a token by making a test API call.
+     */
+    async validateToken(token) {
+      const url = buildUrl('/usage/summary', { group_by: 'daily' });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'CF-Access-Client-Id': token },
+      });
+      if (!response.ok) return null;
+      return response.json();
+    },
+  };
+})();
