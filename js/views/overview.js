@@ -212,11 +212,11 @@
 
         if (pctUsed >= 100) {
           alerts.push({ severity: 'critical', title: 'Bundle Depleted', message: `ICCID ${Utils.truncateIccid(inst.iccid)} — ${inst.bundle_name || 'Unknown'} has exhausted its data allowance`, details: `${Utils.formatMB(inst.data_used_mb)} used of ${Utils.formatMB(inst.data_allowance_mb)}` });
-        } else if (isFinal && daysLeft != null && daysLeft < 7) {
+        } else if (isFinal && daysLeft != null && daysLeft >= 0 && daysLeft < 7) {
           alerts.push({ severity: 'critical', title: 'Final Bundle Expiring', message: `ICCID ${Utils.truncateIccid(inst.iccid)} — Final bundle instance expires in ${daysLeft} days`, details: `${inst.bundle_name} · Sequence ${inst.sequence}/${inst.sequence_max}` });
         } else if (pctUsed > 90) {
           alerts.push({ severity: 'warning', title: 'Data Nearly Depleted', message: `ICCID ${Utils.truncateIccid(inst.iccid)} — ${pctUsed.toFixed(0)}% of data consumed`, details: `${Utils.formatMB(inst.data_used_mb)} of ${Utils.formatMB(inst.data_allowance_mb)} · ${inst.bundle_name}` });
-        } else if (daysLeft != null && daysLeft < 14) {
+        } else if (daysLeft != null && daysLeft >= 0 && daysLeft < 14) {
           alerts.push({ severity: 'warning', title: 'Bundle Expiring Soon', message: `ICCID ${Utils.truncateIccid(inst.iccid)} — expires in ${daysLeft} days`, details: `${inst.bundle_name} · Ends ${Utils.formatDate(inst.end_time)}` });
         }
       });
@@ -301,7 +301,7 @@
     },
     changeDateRange(range) {
       state.dateRange = range;
-      this.refresh();
+      OverviewView.refresh();
     },
     changeGroupBy(groupBy) {
       const days = CONFIG.DATE_RANGES[state.dateRange]?.days || 30;

@@ -78,7 +78,7 @@ const Utils = {
   formatCurrency(amount, currency) {
     if (amount == null || isNaN(amount)) return '-';
     const n = Number(amount);
-    const sym = currency === 'GBP' ? '\u00A3' : currency === 'EUR' ? '\u20AC' : currency === 'USD' ? '$' : (currency || '');
+    const sym = currency === 'EUR' ? '\u20AC' : currency === 'USD' ? '$' : '\u00A3';
     return sym + n.toFixed(2);
   },
 

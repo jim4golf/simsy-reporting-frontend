@@ -57,7 +57,8 @@
       let depleted = 0, finalExpiring = 0;
       instances.forEach(inst => {
         if (Utils.percentUsed(inst.data_used_mb, inst.data_allowance_mb) >= 100) depleted++;
-        if (inst.sequence === inst.sequence_max && Utils.daysUntil(inst.end_time) != null && Utils.daysUntil(inst.end_time) <= 30) finalExpiring++;
+        const dl = Utils.daysUntil(inst.end_time);
+        if (inst.sequence === inst.sequence_max && dl != null && dl >= 0 && dl <= 30) finalExpiring++;
       });
 
       container.innerHTML = [
@@ -120,8 +121,8 @@
           const isFinal = r.sequence != null && r.sequence === r.sequence_max;
 
           if (pctUsed >= 100) return 'row-critical';
-          if (isFinal && daysLeft != null && daysLeft < 7) return 'row-critical';
-          if (daysLeft != null && daysLeft < 14) return 'row-warning';
+          if (isFinal && daysLeft != null && daysLeft >= 0 && daysLeft < 7) return 'row-critical';
+          if (daysLeft != null && daysLeft >= 0 && daysLeft < 14) return 'row-warning';
           if (pctUsed > 85) return 'row-warning';
           return '';
         },
