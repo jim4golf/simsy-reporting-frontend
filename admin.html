@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S-IMSY Reporting Portal - Admin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { display: ['Space Grotesk', 'sans-serif'], body: ['Inter', 'sans-serif'] },
+      colors: {
+        simsy: {
+          blue: '#0ea5e9', 'blue-deep': '#0369a1', cyan: '#22d3ee',
+          purple: '#8b5cf6', green: '#10b981', orange: '#f59e0b',
+          dark: '#0a0e1a', navy: '#111827', surface: '#1e293b',
+          'surface-light': '#283548', 'grey-dark': '#334155',
+          grey: '#94a3b8', white: '#f8fafc',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .font-display { font-family: 'Space Grotesk', sans-serif; }
+</style>
+</head>
+<body class="min-h-screen bg-simsy-dark animated-grid text-simsy-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="fixed top-0 left-0 right-0 z-50 h-14 bg-simsy-navy/90 backdrop-blur-xl border-b border-simsy-grey-dark/30">
+    <div class="flex items-center justify-between h-full px-4">
+      <!-- Left: Logo + Hamburger -->
+      <div class="flex items-center gap-3">
+        <button id="sidebar-toggle" class="lg:hidden p-2 rounded-lg hover:bg-simsy-surface transition-colors text-simsy-grey">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-simsy-blue to-simsy-cyan flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <span class="font-display font-bold text-sm text-simsy-white">S-IMSY Reporting</span>
+      </div>
+
+      <!-- Center: Breadcrumb -->
+      <div class="hidden md:flex items-center gap-2 text-sm">
+        <span class="text-simsy-grey">Admin</span>
+        <svg class="w-4 h-4 text-simsy-grey-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <span id="breadcrumb-view" class="text-simsy-white">Users</span>
+      </div>
+
+      <!-- Right: User & Actions -->
+      <div class="flex items-center gap-3">
+        <div class="h-5 w-px bg-simsy-grey-dark/50"></div>
+        <div class="flex items-center gap-2">
+          <div id="user-avatar" class="w-7 h-7 rounded-full bg-gradient-to-br from-simsy-blue to-simsy-purple flex items-center justify-center text-xs font-bold text-white"></div>
+          <span id="user-name" class="text-sm text-simsy-grey hidden sm:block"></span>
+        </div>
+        <button onclick="Auth.logout()" class="p-2 rounded-lg hover:bg-simsy-surface transition-colors text-simsy-grey hover:text-red-400" title="Sign Out">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex pt-14">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar fixed left-0 top-14 bottom-0 w-56 bg-simsy-navy/50 border-r border-simsy-grey-dark/20 overflow-y-auto hidden lg:block">
+      <nav class="p-3 space-y-1">
+        <div class="px-3 py-2 text-xs font-semibold text-simsy-grey-dark uppercase tracking-wider">Administration</div>
+        <a href="#users" data-view="users" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm">
+          <svg class="w-4 h-4 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          Users
+        </a>
+        <a href="#sessions" data-view="sessions" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-simsy-grey hover:text-simsy-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          Sessions
+        </a>
+
+        <div class="px-3 pt-4 pb-2 text-xs font-semibold text-simsy-grey-dark uppercase tracking-wider">Navigation</div>
+        <a href="dashboard.html" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-simsy-grey hover:text-simsy-white">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+          Back to Dashboard
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="view-container" class="lg:ml-56 flex-1 p-6 min-h-screen">
+      <!-- Views are rendered here by router.js -->
+      <div class="flex items-center justify-center h-64">
+        <div class="spinner"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts: Foundation -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <!-- Scripts: Infrastructure -->
+  <script src="js/components.js"></script>
+  <script src="js/router.js"></script>
+  <!-- Scripts: Admin Views -->
+  <script src="js/views/admin-users.js"></script>
+  <script src="js/views/admin-sessions.js"></script>
+  <!-- Init -->
+  <script>
+    // Charts shim — Router.renderView calls Charts.destroyAll() but we don't load Charts on admin page
+    if (typeof Charts === 'undefined') { window.Charts = { destroyAll() {} }; }
+
+    // Auth guard — admin only
+    if (!Auth.requireAdmin()) {
+      // Redirect happens in requireAdmin
+    } else {
+      // Set user info in header
+      document.getElementById('user-avatar').textContent = Auth.getInitials();
+      document.getElementById('user-name').textContent = Auth.getShortName();
+
+      // Override router view titles for admin
+      Router.viewTitles = {
+        users: 'User Management',
+        sessions: 'Active Sessions',
+      };
+
+      // Sidebar toggle for mobile
+      document.getElementById('sidebar-toggle').addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('hidden');
+        sidebar.classList.toggle('block');
+      });
+
+      // Override default hash for admin (users instead of overview)
+      Router._onHashChange = function() {
+        const hash = window.location.hash.replace('#', '') || 'users';
+        this._renderView(hash);
+      };
+
+      Router.init();
+    }
+  </script>
+</body>
+</html>

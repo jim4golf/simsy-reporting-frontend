@@ -28,6 +28,31 @@ tailwind.config = {
 <style>
   body { font-family: 'Inter', sans-serif; }
   .font-display { font-family: 'Space Grotesk', sans-serif; }
+  /* OTP digit inputs */
+  .otp-input {
+    width: 48px; height: 56px;
+    text-align: center; font-size: 24px; font-weight: 700;
+    font-family: 'Space Grotesk', monospace;
+    background: rgba(10,14,26,0.6);
+    border: 1px solid rgba(51,65,85,0.5);
+    border-radius: 12px;
+    color: #0ea5e9;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .otp-input:focus {
+    border-color: rgba(14,165,233,0.6);
+    box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+  }
+  .otp-input.filled {
+    border-color: rgba(14,165,233,0.4);
+    background: rgba(14,165,233,0.05);
+  }
+  /* Slide transitions */
+  .slide-enter { animation: slideIn 0.3s ease-out; }
+  .slide-exit { animation: slideOut 0.2s ease-in forwards; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes slideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-20px); } }
 </style>
 </head>
 <body class="min-h-screen bg-simsy-dark animated-grid flex items-center justify-center p-4">
@@ -69,45 +94,214 @@ tailwind.config = {
         </button>
       </div>
 
-      <!-- Browser Login Form -->
-      <div id="form-browser">
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <!-- Browser Login: Step 1 — Email + Password                     -->
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <div id="form-login">
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Organisation Name</label>
-            <input id="org-input" type="text" oninput="onFormChange()"
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Email Address</label>
+            <input id="email-input" type="email" autocomplete="email"
               class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm"
-              placeholder="Enter your organisation name...">
+              placeholder="you@company.com">
           </div>
           <div>
-            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Service Token</label>
-            <input id="token-input" type="text" oninput="onFormChange()" onkeydown="if(event.key==='Enter')handleLogin()"
-              class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm font-mono"
-              placeholder="Paste your service token...">
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Password</label>
+            <div class="relative">
+              <input id="password-input" type="password" autocomplete="current-password"
+                class="w-full px-4 py-3 pr-12 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm"
+                placeholder="Enter your password">
+              <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-simsy-grey hover:text-simsy-white transition-colors">
+                <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
           </div>
 
           <!-- Error message -->
           <div id="login-error" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/20">
             <p class="text-xs text-red-400 flex items-start gap-2">
               <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-              <span id="login-error-text">Authentication failed. Please check your token.</span>
+              <span id="login-error-text">Authentication failed.</span>
             </p>
           </div>
 
           <button id="login-btn" onclick="handleLogin()" disabled
             class="w-full py-3 px-4 bg-gradient-to-r from-simsy-blue to-simsy-cyan hover:from-simsy-blue hover:to-simsy-blue text-white font-semibold rounded-xl transition-all shadow-lg shadow-simsy-blue/20 hover:shadow-simsy-blue/30 hover:-translate-y-0.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2">
-            <span id="login-btn-text">Sign In to Dashboard</span>
+            <span id="login-btn-text">Sign In</span>
             <div id="login-spinner" class="hidden spinner" style="width:16px;height:16px;border-width:2px;"></div>
           </button>
         </div>
-        <div class="mt-5 p-3 rounded-xl bg-simsy-blue/5 border border-simsy-blue/15">
-          <p class="text-xs text-simsy-blue flex items-start gap-2">
-            <svg class="w-4 h-4 mt-0.5 flex-shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span>Enter your organisation name and service token to sign in securely via Cloudflare Access.</span>
-          </p>
+
+        <!-- Forgot password link -->
+        <div class="mt-4 text-center">
+          <button onclick="showForgotPassword()" class="text-xs text-simsy-blue hover:text-simsy-cyan transition-colors">Forgot your password?</button>
+        </div>
+
+        <!-- Service token fallback link -->
+        <div class="mt-3 pt-3 border-t border-simsy-grey-dark/30 text-center">
+          <button onclick="showServiceTokenLogin()" class="text-xs text-simsy-grey-dark hover:text-simsy-grey transition-colors">Use a service token instead</button>
         </div>
       </div>
 
-      <!-- API Access Info -->
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <!-- Browser Login: Step 2 — OTP Verification                     -->
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <div id="form-otp" class="hidden">
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-simsy-blue/10 border border-simsy-blue/20 mb-3">
+            <svg class="w-6 h-6 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="font-display text-lg font-semibold text-simsy-white">Check your email</h3>
+          <p class="text-simsy-grey text-sm mt-1">We've sent a 6-digit code to <span id="otp-email-hint" class="text-simsy-cyan font-medium"></span></p>
+        </div>
+
+        <!-- OTP digit inputs -->
+        <div class="flex justify-center gap-2 mb-6" id="otp-container">
+          <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-otp="0" autocomplete="one-time-code">
+          <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-otp="1">
+          <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-otp="2">
+          <div class="flex items-center px-1"><span class="text-simsy-grey-dark text-xl">-</span></div>
+          <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-otp="3">
+          <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-otp="4">
+          <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-otp="5">
+        </div>
+
+        <!-- OTP error -->
+        <div id="otp-error" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+          <p class="text-xs text-red-400 flex items-start gap-2">
+            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span id="otp-error-text">Invalid code.</span>
+          </p>
+        </div>
+
+        <button id="otp-btn" onclick="handleVerifyOTP()" disabled
+          class="w-full py-3 px-4 bg-gradient-to-r from-simsy-blue to-simsy-cyan hover:from-simsy-blue hover:to-simsy-blue text-white font-semibold rounded-xl transition-all shadow-lg shadow-simsy-blue/20 hover:shadow-simsy-blue/30 hover:-translate-y-0.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2">
+          <span id="otp-btn-text">Verify Code</span>
+          <div id="otp-spinner" class="hidden spinner" style="width:16px;height:16px;border-width:2px;"></div>
+        </button>
+
+        <div class="mt-4 flex items-center justify-between">
+          <button onclick="backToLogin()" class="text-xs text-simsy-grey hover:text-simsy-white transition-colors flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Back to login
+          </button>
+          <button id="resend-btn" onclick="handleResendOTP()" class="text-xs text-simsy-blue hover:text-simsy-cyan transition-colors">Resend code</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <!-- Forgot Password Form                                         -->
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <div id="form-forgot" class="hidden">
+        <div class="text-center mb-6">
+          <h3 class="font-display text-lg font-semibold text-simsy-white">Reset your password</h3>
+          <p class="text-simsy-grey text-sm mt-1">Enter your email and we'll send a reset code.</p>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Email Address</label>
+            <input id="forgot-email" type="email" autocomplete="email"
+              class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm"
+              placeholder="you@company.com">
+          </div>
+          <div id="forgot-error" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <p class="text-xs text-red-400" id="forgot-error-text"></p>
+          </div>
+          <button id="forgot-btn" onclick="handleForgotPassword()"
+            class="w-full py-3 px-4 bg-gradient-to-r from-simsy-purple to-simsy-blue text-white font-semibold rounded-xl transition-all shadow-lg text-sm flex items-center justify-center gap-2">
+            <span id="forgot-btn-text">Send Reset Code</span>
+            <div id="forgot-spinner" class="hidden spinner" style="width:16px;height:16px;border-width:2px;"></div>
+          </button>
+        </div>
+        <div class="mt-4 text-center">
+          <button onclick="backToLogin()" class="text-xs text-simsy-grey hover:text-simsy-white transition-colors flex items-center gap-1 mx-auto">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Back to login
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <!-- Reset Password (OTP + new password)                          -->
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <div id="form-reset" class="hidden">
+        <div class="text-center mb-6">
+          <h3 class="font-display text-lg font-semibold text-simsy-white">Set new password</h3>
+          <p class="text-simsy-grey text-sm mt-1">Enter the code we sent plus your new password.</p>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Reset Code</label>
+            <input id="reset-code" type="text" inputmode="numeric" maxlength="6"
+              class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm font-mono tracking-widest text-center text-lg"
+              placeholder="000000">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">New Password</label>
+            <input id="reset-password" type="password"
+              class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm"
+              placeholder="Minimum 12 characters">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Confirm Password</label>
+            <input id="reset-password-confirm" type="password"
+              class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm"
+              placeholder="Confirm new password">
+          </div>
+          <div id="reset-error" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <p class="text-xs text-red-400" id="reset-error-text"></p>
+          </div>
+          <button id="reset-btn" onclick="handleResetPassword()"
+            class="w-full py-3 px-4 bg-gradient-to-r from-simsy-green to-emerald-400 text-white font-semibold rounded-xl transition-all shadow-lg text-sm flex items-center justify-center gap-2">
+            <span id="reset-btn-text">Reset Password</span>
+            <div id="reset-spinner" class="hidden spinner" style="width:16px;height:16px;border-width:2px;"></div>
+          </button>
+        </div>
+        <div class="mt-4 text-center">
+          <button onclick="backToLogin()" class="text-xs text-simsy-grey hover:text-simsy-white transition-colors flex items-center gap-1 mx-auto">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Back to login
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <!-- Service Token Login (legacy)                                 -->
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <div id="form-service-token" class="hidden">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Organisation Name</label>
+            <input id="org-input" type="text"
+              class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm"
+              placeholder="Enter your organisation name...">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Service Token</label>
+            <input id="token-input" type="text"
+              class="w-full px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 text-simsy-white focus:outline-none focus:ring-2 focus:ring-simsy-blue/40 focus:border-simsy-blue/40 transition-all text-sm font-mono"
+              placeholder="Paste your service token...">
+          </div>
+          <div id="st-error" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <p class="text-xs text-red-400" id="st-error-text"></p>
+          </div>
+          <button id="st-btn" onclick="handleServiceTokenLogin()" disabled
+            class="w-full py-3 px-4 bg-gradient-to-r from-simsy-blue to-simsy-cyan hover:from-simsy-blue hover:to-simsy-blue text-white font-semibold rounded-xl transition-all shadow-lg shadow-simsy-blue/20 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <span id="st-btn-text">Sign In with Token</span>
+            <div id="st-spinner" class="hidden spinner" style="width:16px;height:16px;border-width:2px;"></div>
+          </button>
+        </div>
+        <div class="mt-4 text-center">
+          <button onclick="backToLogin()" class="text-xs text-simsy-grey hover:text-simsy-white transition-colors flex items-center gap-1 mx-auto">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Back to email login
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════ -->
+      <!-- API Access Info (unchanged)                                  -->
+      <!-- ══════════════════════════════════════════════════════════════ -->
       <div id="form-api" class="hidden">
         <div class="space-y-4">
           <div>
@@ -120,15 +314,16 @@ tailwind.config = {
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Authentication Header</label>
-            <div class="px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 space-y-1">
-              <code class="text-simsy-green text-xs block font-mono">CF-Access-Client-Id: <span class="text-simsy-grey">&lt;your-client-id&gt;</span></code>
+            <label class="block text-sm font-medium text-simsy-grey mb-1.5">Authentication Methods</label>
+            <div class="px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50 space-y-2">
+              <code class="text-simsy-green text-xs block font-mono">Authorization: Bearer <span class="text-simsy-grey">&lt;jwt-token&gt;</span></code>
+              <code class="text-simsy-green text-xs block font-mono">CF-Access-Client-Id: <span class="text-simsy-grey">&lt;service-token&gt;</span></code>
             </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-simsy-grey mb-1.5">Quick Example</label>
             <div class="px-4 py-3 rounded-xl bg-simsy-dark/60 border border-simsy-grey-dark/50">
-              <code class="text-simsy-orange text-xs block font-mono">curl -H "CF-Access-Client-Id: $ID" \</code>
+              <code class="text-simsy-orange text-xs block font-mono">curl -H "Authorization: Bearer $TOKEN" \</code>
               <code class="text-simsy-orange text-xs block font-mono ml-2">https://simsy-reporting-api.jim-42e.workers.dev/api/v1/usage/summary</code>
             </div>
           </div>
@@ -140,7 +335,7 @@ tailwind.config = {
         <div class="mt-5 p-3 rounded-xl bg-simsy-green/5 border border-simsy-green/15">
           <p class="text-xs text-simsy-green flex items-start gap-2">
             <svg class="w-4 h-4 mt-0.5 flex-shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span>API access uses Cloudflare Service Tokens. All responses are JSON. Rate limited to 100 req/min per tenant.</span>
+            <span>API access supports both JWT tokens and Cloudflare Service Tokens. Rate limited to 100 req/min per tenant.</span>
           </p>
         </div>
       </div>
@@ -148,11 +343,11 @@ tailwind.config = {
 
     <!-- Footer -->
     <div class="text-center mt-6 fade-in-3">
-      <p class="text-simsy-grey-dark text-xs">Powered by S-IMSY Ltd · Secured by Cloudflare Access</p>
+      <p class="text-simsy-grey-dark text-xs">Powered by S-IMSY Ltd</p>
       <div class="flex items-center justify-center gap-5 mt-3">
         <span class="inline-flex items-center gap-1.5 text-xs text-simsy-grey-dark">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          TLS 1.3
+          Email 2FA
         </span>
         <span class="inline-flex items-center gap-1.5 text-xs text-simsy-grey-dark">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -171,58 +366,329 @@ tailwind.config = {
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
   <script>
+    // ── State ──────────────────────────────────────────────────────
+    let otpToken = null;    // from login step 1
+    let resetToken = null;  // from forgot-password
+
     // If already logged in, go to dashboard
     if (Auth.isLoggedIn()) {
       window.location.href = 'dashboard.html';
     }
 
-    function onFormChange() {
-      const org = document.getElementById('org-input').value.trim();
-      const token = document.getElementById('token-input').value.trim();
-      document.getElementById('login-btn').disabled = !(org && token);
+    // ── Form validation ────────────────────────────────────────────
+
+    // Email/password form
+    const emailInput = document.getElementById('email-input');
+    const passwordInput = document.getElementById('password-input');
+    const loginBtn = document.getElementById('login-btn');
+
+    function validateLoginForm() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      loginBtn.disabled = !(email && password && email.includes('@'));
       document.getElementById('login-error').classList.add('hidden');
     }
+    emailInput.addEventListener('input', validateLoginForm);
+    passwordInput.addEventListener('input', validateLoginForm);
+    passwordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !loginBtn.disabled) handleLogin();
+    });
+
+    // Service token form
+    const orgInput = document.getElementById('org-input');
+    const tokenInput = document.getElementById('token-input');
+    const stBtn = document.getElementById('st-btn');
+    function validateSTForm() {
+      stBtn.disabled = !(orgInput.value.trim() && tokenInput.value.trim());
+    }
+    orgInput.addEventListener('input', validateSTForm);
+    tokenInput.addEventListener('input', validateSTForm);
+    tokenInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !stBtn.disabled) handleServiceTokenLogin();
+    });
+
+    // ── OTP input behaviour ────────────────────────────────────────
+
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const otpBtn = document.getElementById('otp-btn');
+
+    otpInputs.forEach((input, idx) => {
+      input.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/\D/g, '');
+        e.target.value = val;
+        if (val) {
+          e.target.classList.add('filled');
+          // Auto-advance to next input
+          if (idx < otpInputs.length - 1) {
+            otpInputs[idx + 1].focus();
+          }
+        } else {
+          e.target.classList.remove('filled');
+        }
+        // Enable verify button when all 6 digits entered
+        const code = getOTPCode();
+        otpBtn.disabled = code.length !== 6;
+        document.getElementById('otp-error').classList.add('hidden');
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+          otpInputs[idx - 1].focus();
+          otpInputs[idx - 1].value = '';
+          otpInputs[idx - 1].classList.remove('filled');
+        }
+        if (e.key === 'Enter' && !otpBtn.disabled) {
+          handleVerifyOTP();
+        }
+      });
+
+      // Handle paste — spread digits across inputs
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+        for (let i = 0; i < pasted.length && i < otpInputs.length; i++) {
+          otpInputs[i].value = pasted[i];
+          otpInputs[i].classList.add('filled');
+        }
+        if (pasted.length > 0) {
+          const focusIdx = Math.min(pasted.length, otpInputs.length - 1);
+          otpInputs[focusIdx].focus();
+        }
+        otpBtn.disabled = getOTPCode().length !== 6;
+      });
+    });
+
+    function getOTPCode() {
+      return Array.from(otpInputs).map(i => i.value).join('');
+    }
+
+    function clearOTPInputs() {
+      otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled'); });
+      otpBtn.disabled = true;
+    }
+
+    // ── Handlers ───────────────────────────────────────────────────
 
     async function handleLogin() {
-      const org = document.getElementById('org-input').value.trim();
-      const token = document.getElementById('token-input').value.trim();
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) return;
+
+      setLoading('login', true);
+      hideError('login');
+
+      try {
+        const result = await API.login(email, password);
+        otpToken = result.otp_token;
+
+        // Show OTP form
+        document.getElementById('otp-email-hint').textContent = result.email_hint;
+        showForm('otp');
+        clearOTPInputs();
+        // Focus first OTP input
+        setTimeout(() => otpInputs[0].focus(), 300);
+      } catch (err) {
+        showError('login', err.message);
+      } finally {
+        setLoading('login', false);
+      }
+    }
+
+    async function handleVerifyOTP() {
+      const code = getOTPCode();
+      if (code.length !== 6 || !otpToken) return;
+
+      setLoading('otp', true);
+      hideError('otp');
+
+      try {
+        const result = await API.verifyOTP(otpToken, code);
+        // Success — store JWT and redirect
+        Auth.loginWithJWT(result.token, result.user);
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        showError('otp', err.message);
+        clearOTPInputs();
+        otpInputs[0].focus();
+      } finally {
+        setLoading('otp', false);
+      }
+    }
+
+    async function handleResendOTP() {
+      // Re-trigger login to get a new OTP
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        backToLogin();
+        return;
+      }
+
+      const resendBtn = document.getElementById('resend-btn');
+      resendBtn.textContent = 'Sending...';
+      resendBtn.disabled = true;
+
+      try {
+        const result = await API.login(email, password);
+        otpToken = result.otp_token;
+        clearOTPInputs();
+        otpInputs[0].focus();
+        resendBtn.textContent = 'Code sent!';
+        setTimeout(() => { resendBtn.textContent = 'Resend code'; resendBtn.disabled = false; }, 3000);
+      } catch (err) {
+        showError('otp', err.message);
+        resendBtn.textContent = 'Resend code';
+        resendBtn.disabled = false;
+      }
+    }
+
+    async function handleServiceTokenLogin() {
+      const org = orgInput.value.trim();
+      const token = tokenInput.value.trim();
       if (!org || !token) return;
 
-      const btn = document.getElementById('login-btn');
-      const btnText = document.getElementById('login-btn-text');
-      const spinner = document.getElementById('login-spinner');
-      const errorDiv = document.getElementById('login-error');
-
-      btn.disabled = true;
-      btnText.textContent = 'Signing in...';
-      spinner.classList.remove('hidden');
-      errorDiv.classList.add('hidden');
+      setLoading('st', true);
+      hideError('st');
 
       try {
         const result = await API.validateToken(token);
         if (result) {
-          Auth.login(org, token);
+          Auth.loginWithServiceToken(org, token);
           window.location.href = 'dashboard.html';
         } else {
           throw new Error('Invalid token');
         }
       } catch (err) {
-        document.getElementById('login-error-text').textContent =
-          'Authentication failed: ' + (err.message || 'Please check your token.');
-        errorDiv.classList.remove('hidden');
-        btnText.textContent = 'Sign In to Dashboard';
-        spinner.classList.add('hidden');
-        btn.disabled = false;
+        showError('st', 'Authentication failed: ' + (err.message || 'Please check your token.'));
+      } finally {
+        setLoading('st', false);
       }
     }
 
+    async function handleForgotPassword() {
+      const email = document.getElementById('forgot-email').value.trim();
+      if (!email) return;
+
+      setLoading('forgot', true);
+      hideError('forgot');
+
+      try {
+        const result = await API.forgotPassword(email);
+        resetToken = result.reset_token;
+        showForm('reset');
+      } catch (err) {
+        showError('forgot', err.message);
+      } finally {
+        setLoading('forgot', false);
+      }
+    }
+
+    async function handleResetPassword() {
+      const code = document.getElementById('reset-code').value.trim();
+      const password = document.getElementById('reset-password').value;
+      const confirm = document.getElementById('reset-password-confirm').value;
+
+      if (!code || !password || !confirm) return;
+      if (password !== confirm) {
+        showError('reset', 'Passwords do not match.');
+        return;
+      }
+      if (password.length < 12) {
+        showError('reset', 'Password must be at least 12 characters.');
+        return;
+      }
+
+      setLoading('reset', true);
+      hideError('reset');
+
+      try {
+        await API.resetPassword(resetToken, code, password);
+        // Show success and go back to login
+        alert('Password reset successfully! Please log in with your new password.');
+        backToLogin();
+      } catch (err) {
+        showError('reset', err.message);
+      } finally {
+        setLoading('reset', false);
+      }
+    }
+
+    // ── Navigation helpers ─────────────────────────────────────────
+
+    function showForm(name) {
+      ['form-login', 'form-otp', 'form-forgot', 'form-reset', 'form-service-token', 'form-api'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      const target = document.getElementById('form-' + name);
+      target.classList.remove('hidden');
+      target.classList.add('slide-enter');
+      setTimeout(() => target.classList.remove('slide-enter'), 300);
+    }
+
+    function backToLogin() {
+      showForm('login');
+      emailInput.focus();
+    }
+
+    function showForgotPassword() {
+      document.getElementById('forgot-email').value = emailInput.value;
+      showForm('forgot');
+    }
+
+    function showServiceTokenLogin() {
+      showForm('service-token');
+    }
+
     function switchTab(tab) {
-      document.getElementById('form-browser').classList.toggle('hidden', tab !== 'browser');
-      document.getElementById('form-api').classList.toggle('hidden', tab !== 'api');
+      if (tab === 'browser') {
+        showForm('login');
+      } else {
+        showForm('api');
+      }
       const activeClass = 'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all bg-simsy-surface text-simsy-white shadow-sm border border-simsy-grey-dark/50';
       const inactiveClass = 'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all text-simsy-grey hover:text-simsy-white border border-transparent';
       document.getElementById('tab-browser').className = tab === 'browser' ? activeClass : inactiveClass;
       document.getElementById('tab-api').className = tab === 'api' ? activeClass : inactiveClass;
+    }
+
+    function togglePasswordVisibility() {
+      const input = document.getElementById('password-input');
+      const icon = document.getElementById('eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"/>';
+      } else {
+        input.type = 'password';
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+      }
+    }
+
+    // ── UI helpers ──────────────────────────────────────────────────
+
+    function setLoading(prefix, loading) {
+      const btn = document.getElementById(prefix + '-btn');
+      const text = document.getElementById(prefix + '-btn-text');
+      const spinner = document.getElementById(prefix + '-spinner');
+      if (loading) {
+        btn.disabled = true;
+        text.textContent = prefix === 'otp' ? 'Verifying...' : prefix === 'forgot' ? 'Sending...' : prefix === 'reset' ? 'Resetting...' : 'Signing in...';
+        spinner.classList.remove('hidden');
+      } else {
+        text.textContent = prefix === 'otp' ? 'Verify Code' : prefix === 'forgot' ? 'Send Reset Code' : prefix === 'reset' ? 'Reset Password' : prefix === 'st' ? 'Sign In with Token' : 'Sign In';
+        spinner.classList.add('hidden');
+        // Don't re-enable — the form validation will handle it
+      }
+    }
+
+    function showError(prefix, message) {
+      const el = document.getElementById(prefix + '-error');
+      const text = document.getElementById(prefix + '-error-text');
+      text.textContent = message;
+      el.classList.remove('hidden');
+    }
+
+    function hideError(prefix) {
+      document.getElementById(prefix + '-error').classList.add('hidden');
     }
 
     function copyToClipboard(text) {

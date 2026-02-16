@@ -18,5 +18,7 @@ const CONFIG = {
   STORAGE_KEYS: {
     TOKEN: 'simsy_token',
     ORG: 'simsy_org',
+    USER: 'simsy_user',
+    AUTH_METHOD: 'simsy_auth_method',
   },
 };

@@ -1,11 +1,19 @@
 /**
  * API client with auth header injection, caching, and error handling.
+ *
+ * Supports two auth methods:
+ *   - JWT: sends Authorization: Bearer <token>
+ *   - Service Token: sends CF-Access-Client-Id: <token>
  */
 const API = (() => {
   const cache = new Map();
 
   function getToken() {
     return sessionStorage.getItem(CONFIG.STORAGE_KEYS.TOKEN);
+  }
+
+  function getAuthMethod() {
+    return sessionStorage.getItem(CONFIG.STORAGE_KEYS.AUTH_METHOD) || 'jwt';
   }
 
   function buildUrl(path, params) {
@@ -36,6 +44,16 @@ const API = (() => {
     cache.set(key, { data, time: Date.now() });
   }
 
+  /** Build the auth header based on the current auth method. */
+  function authHeaders() {
+    const token = getToken();
+    if (!token) return {};
+    if (getAuthMethod() === 'jwt') {
+      return { 'Authorization': 'Bearer ' + token };
+    }
+    return { 'CF-Access-Client-Id': token };
+  }
+
   async function request(method, path, { params, body, skipCache } = {}) {
     const url = buildUrl(path, params);
     const token = getToken();
@@ -52,7 +70,7 @@ const API = (() => {
     }
 
     const headers = {
-      'CF-Access-Client-Id': token,
+      ...authHeaders(),
     };
 
     const fetchOptions = { method, headers };
@@ -104,6 +122,14 @@ const API = (() => {
       return request('POST', path, { body });
     },
 
+    put(path, body) {
+      return request('PUT', path, { body });
+    },
+
+    del(path) {
+      return request('DELETE', path);
+    },
+
     /**
      * Fetch a raw response (for file downloads).
      */
@@ -115,7 +141,7 @@ const API = (() => {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'CF-Access-Client-Id': token,
+          ...authHeaders(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -133,8 +159,66 @@ const API = (() => {
       cache.clear();
     },
 
+    // ── Auth endpoints (no auth required) ──────────────────────────
+
+    /** Step 1: email + password → OTP token. */
+    async login(email, password) {
+      const response = await fetch(CONFIG.API_BASE + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.detail || 'Login failed');
+      }
+      return data;
+    },
+
+    /** Step 2: OTP code → JWT. */
+    async verifyOTP(otpToken, code) {
+      const response = await fetch(CONFIG.API_BASE + '/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp_token: otpToken, code }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.detail || 'Verification failed');
+      }
+      return data;
+    },
+
+    /** Request password reset OTP. */
+    async forgotPassword(email) {
+      const response = await fetch(CONFIG.API_BASE + '/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Request failed');
+      }
+      return data;
+    },
+
+    /** Complete password reset with OTP. */
+    async resetPassword(resetToken, code, newPassword) {
+      const response = await fetch(CONFIG.API_BASE + '/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset_token: resetToken, code, new_password: newPassword }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Reset failed');
+      }
+      return data;
+    },
+
     /**
-     * Validate a token by making a test API call.
+     * Validate a service token by making a test API call (legacy).
      */
     async validateToken(token) {
       const url = buildUrl('/usage/summary', { group_by: 'daily' });
