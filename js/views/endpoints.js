@@ -35,7 +35,7 @@
     container.innerHTML = Components.viewHeader({
       title: 'Endpoints',
       subtitle: 'SIM endpoint status, health, and usage',
-    }) + `
+    }) + Filters.renderBar() + `
       <div class="flex flex-wrap items-center gap-3 mb-6">
         <input type="text" id="ep-filter-name" class="filter-input" placeholder="Search endpoint name..." onkeydown="if(event.key==='Enter'){EndpointsView.search()}">
         <select id="ep-filter-status" class="filter-select">
@@ -60,7 +60,7 @@
     if (!gridContainer) return;
 
     state.page = page;
-    const params = { page, per_page: state.perPage };
+    const params = { page, per_page: state.perPage, ...Filters.getParams() };
     if (state.filters.status) params.status = state.filters.status;
 
     try {
@@ -147,7 +147,7 @@
       container.innerHTML = Components.loading('Loading endpoint usage...');
 
       try {
-        const data = await API.get(`/endpoints/${encodeURIComponent(id)}/usage`, { group_by: 'daily', from: Utils.daysAgo(90) });
+        const data = await API.get(`/endpoints/${encodeURIComponent(id)}/usage`, { group_by: 'daily', from: Utils.daysAgo(90), ...Filters.getParams() });
         const labels = (data.data || []).map(d => Utils.formatChartDate(d.date));
         const values = (data.data || []).map(d => Number(d.total_bytes) / (1024 * 1024)); // MB
 

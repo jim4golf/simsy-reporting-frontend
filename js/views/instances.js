@@ -11,7 +11,7 @@
     container.innerHTML = Components.viewHeader({
       title: 'Bundle Instances',
       subtitle: 'Monitor bundle lifecycle, depletion and expiry',
-    }) + `
+    }) + Filters.renderBar() + `
       <!-- Summary Cards -->
       <div id="instance-summary" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         ${Array.from({length: 4}, () => '<div class="glass-card rounded-2xl p-4"><div class="loading-skeleton h-16 w-full"></div></div>').join('')}
@@ -47,10 +47,11 @@
     if (!container) return;
 
     try {
+      const fp = Filters.getParams();
       const [active, expiring7d, allActive] = await Promise.all([
-        API.get('/bundle-instances', { status: 'Active', per_page: 1 }),
-        API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(7), per_page: 1 }),
-        API.get('/bundle-instances', { status: 'Active', per_page: 1000 }),
+        API.get('/bundle-instances', { status: 'Active', per_page: 1, ...fp }),
+        API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(7), per_page: 1, ...fp }),
+        API.get('/bundle-instances', { status: 'Active', per_page: 1000, ...fp }),
       ]);
 
       const instances = allActive.data || [];
@@ -78,7 +79,7 @@
     if (!tableContainer) return;
 
     state.page = page;
-    const params = { page, per_page: state.perPage };
+    const params = { page, per_page: state.perPage, ...Filters.getParams() };
     if (state.filters.iccid) params.iccid = state.filters.iccid;
     if (state.filters.status) params.status = state.filters.status;
     if (state.filters.expiring_before) params.expiring_before = state.filters.expiring_before;

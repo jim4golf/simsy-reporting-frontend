@@ -9,7 +9,7 @@
     container.innerHTML = Components.viewHeader({
       title: 'Active Bundles',
       subtitle: 'Bundle catalog and efficiency analysis',
-    }) + `
+    }) + Filters.renderBar() + `
       <div class="tab-group mb-4">
         <button class="tab-btn ${state.statusFilter === '' ? 'active' : ''}" onclick="BundlesView.filterStatus('')">All</button>
         <button class="tab-btn ${state.statusFilter === 'Active' ? 'active' : ''}" onclick="BundlesView.filterStatus('Active')">Active</button>
@@ -32,7 +32,7 @@
     if (!tableContainer) return;
 
     state.page = page;
-    const params = { page, per_page: state.perPage };
+    const params = { page, per_page: state.perPage, ...Filters.getParams() };
     if (state.statusFilter) params.status = state.statusFilter;
 
     try {

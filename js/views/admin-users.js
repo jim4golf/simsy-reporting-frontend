@@ -39,7 +39,7 @@
         </div>
         <button onclick="AdminUsersView.showCreateForm()" class="btn-primary text-xs py-2 px-4 flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-          Create User
+          Invite User
         </button>
       </div>
       <div class="glass-card rounded-2xl p-5">
@@ -96,15 +96,21 @@
           { label: 'Status', render: r => statusBadge(r.is_active !== false) },
           { label: 'Last Login', render: r => r.last_login_at ? Utils.formatDate(r.last_login_at) : '-' },
           { label: 'Actions', render: r => `
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1">
               <button onclick="AdminUsersView.showEditForm('${Utils.escapeHtml(r.id)}')" class="p-1.5 rounded-lg hover:bg-simsy-surface transition-colors text-simsy-grey hover:text-simsy-blue" title="Edit">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
               </button>
+              ${!r.last_login_at && !r.is_active ? `<button onclick="AdminUsersView.resendInvite('${Utils.escapeHtml(r.id)}', '${Utils.escapeHtml(r.email)}')" class="p-1.5 rounded-lg hover:bg-simsy-surface transition-colors text-simsy-grey hover:text-simsy-green" title="Resend Invite">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              </button>` : ''}
               <button onclick="AdminUsersView.toggleActive('${Utils.escapeHtml(r.id)}', ${!(r.is_active !== false)})" class="p-1.5 rounded-lg hover:bg-simsy-surface transition-colors ${r.is_active !== false ? 'text-simsy-grey hover:text-red-400' : 'text-simsy-grey hover:text-simsy-green'}" title="${r.is_active !== false ? 'Deactivate' : 'Activate'}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${r.is_active !== false ? 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'}"/></svg>
               </button>
               <button onclick="AdminUsersView.showResetPassword('${Utils.escapeHtml(r.id)}', '${Utils.escapeHtml(r.email)}')" class="p-1.5 rounded-lg hover:bg-simsy-surface transition-colors text-simsy-grey hover:text-simsy-orange" title="Reset Password">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+              </button>
+              <button onclick="AdminUsersView.confirmDelete('${Utils.escapeHtml(r.id)}', '${Utils.escapeHtml(r.email)}')" class="p-1.5 rounded-lg hover:bg-simsy-surface transition-colors text-simsy-grey hover:text-red-500" title="Delete User">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
             </div>
           ` },
@@ -163,16 +169,13 @@
   // ── Create User Form ─────────────────────────────────────────────
 
   function showCreateForm() {
-    openModal('Create User', `
+    openModal('Invite User', `
+      <p class="text-sm text-simsy-grey mb-4">An invitation email will be sent to the user to set their own password.</p>
       <form onsubmit="event.preventDefault();AdminUsersView.submitCreate()">
         <div class="space-y-4">
           <div>
             <label class="block text-xs text-simsy-grey mb-1">Email</label>
             <input type="email" id="create-email" class="filter-input w-full" required placeholder="user@example.com">
-          </div>
-          <div>
-            <label class="block text-xs text-simsy-grey mb-1">Password</label>
-            <input type="password" id="create-password" class="filter-input w-full" required placeholder="Minimum 12 characters" minlength="12">
           </div>
           <div>
             <label class="block text-xs text-simsy-grey mb-1">Display Name</label>
@@ -199,7 +202,7 @@
           </div>
           <div class="flex justify-end gap-3 pt-2">
             <button type="button" onclick="AdminUsersView.closeModal()" class="btn-secondary text-sm">Cancel</button>
-            <button type="submit" id="create-submit-btn" class="btn-primary text-sm">Create User</button>
+            <button type="submit" id="create-submit-btn" class="btn-primary text-sm">Send Invite</button>
           </div>
         </div>
       </form>
@@ -209,32 +212,34 @@
   async function submitCreate() {
     const btn = document.getElementById('create-submit-btn');
     const email = document.getElementById('create-email')?.value?.trim();
-    const password = document.getElementById('create-password')?.value;
     const display_name = document.getElementById('create-display-name')?.value?.trim();
     const role = document.getElementById('create-role')?.value;
     const tenant_id = document.getElementById('create-tenant')?.value;
     const customer_name = document.getElementById('create-customer-name')?.value?.trim();
 
-    if (!email || !password || !display_name || !tenant_id) {
-      showModalError('Email, password, display name, and tenant are required.');
+    if (!email || !display_name || !tenant_id) {
+      showModalError('Email, display name, and tenant are required.');
       return;
     }
-    if (password.length < 12) { showModalError('Password must be at least 12 characters.'); return; }
 
-    const body = { email, password, display_name, role, tenant_id };
+    const body = { email, display_name, role, tenant_id };
     if (role === 'customer' && customer_name) body.customer_name = customer_name;
 
     btn.disabled = true;
-    btn.textContent = 'Creating...';
+    btn.textContent = 'Sending invite...';
 
     try {
-      await API.post('/admin/users', body);
-      showModalSuccess('User created successfully.');
-      setTimeout(() => { closeModal(); loadPage(1); }, 800);
+      const result = await API.post('/admin/users', body);
+      if (result.invite_sent) {
+        showModalSuccess('Invitation email sent to ' + email);
+      } else {
+        showModalSuccess('User created but invitation email failed to send. You may need to resend.');
+      }
+      setTimeout(() => { closeModal(); loadPage(1); }, 1500);
     } catch (err) {
       showModalError(err.message);
       btn.disabled = false;
-      btn.textContent = 'Create User';
+      btn.textContent = 'Send Invite';
     }
   }
 
@@ -383,6 +388,81 @@
     }
   }
 
+  // ── Delete User ─────────────────────────────────────────────────
+
+  function confirmDelete(userId, email) {
+    openModal('Delete User', `
+      <div class="text-center space-y-4">
+        <div class="mx-auto w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+          <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <p class="text-sm text-simsy-grey">Are you sure you want to permanently delete <span class="text-simsy-white font-medium">${Utils.escapeHtml(email)}</span>?</p>
+        <p class="text-xs text-red-400">This action cannot be undone. All sessions and OTP records for this user will also be deleted.</p>
+        <div class="flex justify-center gap-3 pt-2">
+          <button type="button" onclick="AdminUsersView.closeModal()" class="btn-secondary text-sm">Cancel</button>
+          <button type="button" id="delete-confirm-btn" onclick="AdminUsersView.deleteUser('${Utils.escapeHtml(userId)}')" class="text-sm px-4 py-2 rounded-xl font-medium bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors">Delete Permanently</button>
+        </div>
+      </div>
+    `);
+  }
+
+  async function deleteUser(userId) {
+    const btn = document.getElementById('delete-confirm-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
+    }
+
+    try {
+      await API.del('/admin/users/' + userId);
+      showModalSuccess('User deleted successfully.');
+      setTimeout(() => { closeModal(); loadPage(state.page); }, 800);
+    } catch (err) {
+      showModalError(err.message);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Delete Permanently';
+      }
+    }
+  }
+
+  // ── Resend Invite ──────────────────────────────────────────────
+
+  async function resendInvite(userId, email) {
+    openModal('Resend Invite', `
+      <p class="text-sm text-simsy-grey mb-4">Send a new invitation email to <span class="text-simsy-white font-medium">${Utils.escapeHtml(email)}</span>?</p>
+      <p class="text-xs text-simsy-grey mb-4">Any previous invite link will be invalidated. The new link expires in 48 hours.</p>
+      <div class="flex justify-end gap-3">
+        <button type="button" onclick="AdminUsersView.closeModal()" class="btn-secondary text-sm">Cancel</button>
+        <button type="button" id="resend-invite-btn" onclick="AdminUsersView.doResendInvite('${Utils.escapeHtml(userId)}')" class="btn-primary text-sm">Send Invite</button>
+      </div>
+    `);
+  }
+
+  async function doResendInvite(userId) {
+    const btn = document.getElementById('resend-invite-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+    }
+
+    try {
+      const result = await API.post('/admin/users/' + userId + '/resend-invite', {});
+      if (result.invite_sent) {
+        showModalSuccess('Invitation email sent.');
+      } else {
+        showModalError('Failed to send invite email. Please check Brevo settings.');
+      }
+      setTimeout(() => closeModal(), 1500);
+    } catch (err) {
+      showModalError(err.message);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Send Invite';
+      }
+    }
+  }
+
   // ── Role Change Handler ─────────────────────────────────────────
 
   function onRoleChange(prefix) {
@@ -416,6 +496,10 @@
     toggleActive,
     showResetPassword,
     submitResetPassword,
+    confirmDelete,
+    deleteUser,
+    resendInvite,
+    doResendInvite,
     closeModal,
     onRoleChange,
   };

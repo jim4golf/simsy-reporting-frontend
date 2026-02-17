@@ -148,6 +148,7 @@ tailwind.config = {
   <!-- Scripts: Infrastructure -->
   <script src="js/components.js"></script>
   <script src="js/charts.js"></script>
+  <script src="js/filters.js"></script>
   <script src="js/router.js"></script>
   <!-- Scripts: Views -->
   <script src="js/views/overview.js"></script>
@@ -182,8 +183,11 @@ tailwind.config = {
         sidebar.classList.toggle('block');
       });
 
-      // Initialize router
-      Router.init();
+      // Initialize filters (loads tenant list for admin users)
+      Filters.init().then(() => {
+        // Initialize router after filters are ready
+        Router.init();
+      });
     }
   </script>
 </body>

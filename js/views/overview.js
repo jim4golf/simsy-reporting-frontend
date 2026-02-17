@@ -18,7 +18,7 @@
       onRefresh: 'OverviewView.refresh',
       onDateChange: 'OverviewView.changeDateRange',
       currentRange: state.dateRange,
-    }) + `
+    }) + Filters.renderBar() + `
       <!-- KPI Cards -->
       <div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         ${Array.from({length: 4}, () => '<div class="glass-card rounded-2xl p-5"><div class="loading-skeleton h-20 w-full"></div></div>').join('')}
@@ -90,11 +90,12 @@
     if (!container) return;
 
     try {
+      const fp = Filters.getParams();
       const [usage, bundles, endpoints, expiring] = await Promise.all([
-        API.get('/usage/summary', { group_by: 'daily', from, to }),
-        API.get('/bundles', { status: 'Active', per_page: 1 }),
-        API.get('/endpoints', { per_page: 1 }),
-        API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(30), per_page: 1 }),
+        API.get('/usage/summary', { group_by: 'daily', from, to, ...fp }),
+        API.get('/bundles', { status: 'Active', per_page: 1, ...fp }),
+        API.get('/endpoints', { per_page: 1, ...fp }),
+        API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(30), per_page: 1, ...fp }),
       ]);
 
       const totalBytes = usage?.summary?.total_bytes || 0;
@@ -135,7 +136,7 @@
 
   async function loadUsageChart(from, to, groupBy) {
     try {
-      const data = await API.get('/usage/summary', { group_by: groupBy, from, to });
+      const data = await API.get('/usage/summary', { group_by: groupBy, from, to, ...Filters.getParams() });
       const labels = (data.data || []).map(d => Utils.formatChartDate(d.date));
       const values = (data.data || []).map(d => Number(d.total_bytes) / (1024 * 1024 * 1024)); // GB
 
@@ -157,7 +158,7 @@
 
   async function loadBundleHealth() {
     try {
-      const data = await API.get('/bundle-instances', { status: 'Active', per_page: 1000 });
+      const data = await API.get('/bundle-instances', { status: 'Active', per_page: 1000, ...Filters.getParams() });
       const instances = data.data || [];
 
       let healthy = 0, low = 0, critical = 0, depleted = 0;
@@ -200,7 +201,7 @@
     if (!panel) return;
 
     try {
-      const data = await API.get('/bundle-instances', { status: 'Active', per_page: 500 });
+      const data = await API.get('/bundle-instances', { status: 'Active', per_page: 500, ...Filters.getParams() });
       const instances = data.data || [];
       const now = Date.now();
       const alerts = [];
@@ -249,7 +250,7 @@
     if (!container) return;
 
     try {
-      const data = await API.get('/endpoints', { per_page: 20 });
+      const data = await API.get('/endpoints', { per_page: 20, ...Filters.getParams() });
       const endpoints = (data.data || [])
         .sort((a, b) => (Number(b.usage_rolling_28d) || 0) - (Number(a.usage_rolling_28d) || 0))
         .slice(0, 5);

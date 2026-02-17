@@ -12,7 +12,7 @@
     container.innerHTML = Components.viewHeader({
       title: 'Usage Reports',
       subtitle: 'Detailed data usage records',
-    }) + `
+    }) + Filters.renderBar() + `
       <div class="flex flex-wrap items-center gap-3 mb-4">
         <input type="text" id="usage-filter-iccid" class="filter-input" placeholder="Filter by ICCID..." value="${state.filters.iccid || ''}" onkeydown="if(event.key==='Enter'){UsageView.search()}">
         <input type="date" id="usage-filter-from" class="filter-input" value="${state.filters.from || ''}">
@@ -35,7 +35,7 @@
     if (!tableContainer) return;
 
     state.page = page;
-    const params = { page, per_page: state.perPage };
+    const params = { page, per_page: state.perPage, ...Filters.getParams() };
     if (state.filters.iccid) params.iccid = state.filters.iccid;
     if (state.filters.from) params.from = state.filters.from;
     if (state.filters.to) params.to = state.filters.to;
