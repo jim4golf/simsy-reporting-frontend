@@ -100,7 +100,7 @@
                 ${Components.healthDot(health)}
                 <span class="text-sm font-medium text-simsy-white truncate">${Utils.escapeHtml(ep.endpoint_name || ep.endpoint_identifier || 'Unknown')}</span>
               </div>
-              ${Components.statusBadge(ep.endpoint_status_name || ep.status)}
+              ${Components.statusBadge(ep.endpoint_status_name || ep.status || ep.network_status_name || (Number(ep.usage_rolling_28d) > 0 ? 'Active' : null))}
             </div>
             ${anomalyHtml ? `<div class="flex flex-wrap gap-2 mb-3">${anomalyHtml}</div>` : ''}
             <div class="grid grid-cols-3 gap-2 mb-3">
