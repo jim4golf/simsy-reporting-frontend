@@ -91,6 +91,9 @@ const Components = {
   statusBadge(status) {
     if (!status) return this.badge('-', 'grey');
     const s = status.toLowerCase();
+    if (s === 'live') return this.badge(status, 'live');
+    if (s === 'terminated') return this.badge(status, 'grey');
+    if (s === 'depleted') return this.badge(status, 'red');
     if (s.includes('active') || s === 'enabled') return this.badge(status, 'green');
     if (s.includes('pending') || s.includes('provisioning')) return this.badge(status, 'blue');
     if (s.includes('expir') || s.includes('suspend')) return this.badge(status, 'orange');

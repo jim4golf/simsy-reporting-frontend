@@ -135,6 +135,22 @@ const Utils = {
   },
 
   /**
+   * Compute a display status for a bundle instance based on lifecycle.
+   * Depleted > LIVE > Terminated > original status
+   */
+  computeInstanceStatus(inst) {
+    const now = Date.now();
+    const start = inst.start_time ? new Date(inst.start_time).getTime() : null;
+    const end = inst.end_time ? new Date(inst.end_time).getTime() : null;
+    const orig = inst.status_name || inst.status_moniker || '';
+
+    // Only LIVE is computed — currently within start/end window
+    if (start && end && now >= start && now <= end) return 'LIVE';
+    // All other statuses (Active, Depleted, Expired, Suspended, etc.) come from the database
+    return orig || '-';
+  },
+
+  /**
    * Escape HTML to prevent XSS.
    */
   escapeHtml(str) {

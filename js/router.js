@@ -45,12 +45,19 @@ const Router = {
 
   /**
    * Navigate to a view programmatically with optional params.
+   * Forces re-render even if the hash hasn't changed (e.g. back buttons).
    */
   navigate(viewName, params) {
     if (params) {
       this._pendingParams = params;
     }
-    window.location.hash = '#' + viewName;
+    const currentHash = window.location.hash.replace('#', '') || 'overview';
+    if (currentHash === viewName) {
+      // Hash didn't change so hashchange won't fire — render manually
+      this._renderView(viewName);
+    } else {
+      window.location.hash = '#' + viewName;
+    }
   },
 
   /**

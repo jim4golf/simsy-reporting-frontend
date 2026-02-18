@@ -11,10 +11,11 @@
       subtitle: 'Bundle catalog and efficiency analysis',
     }) + Filters.renderBar() + `
       <div class="tab-group mb-4">
-        <button class="tab-btn ${state.statusFilter === '' ? 'active' : ''}" onclick="BundlesView.filterStatus('')">All</button>
-        <button class="tab-btn ${state.statusFilter === 'Active' ? 'active' : ''}" onclick="BundlesView.filterStatus('Active')">Active</button>
-        <button class="tab-btn ${state.statusFilter === 'Provisioning' ? 'active' : ''}" onclick="BundlesView.filterStatus('Provisioning')">Provisioning</button>
-        <button class="tab-btn ${state.statusFilter === 'Expired' ? 'active' : ''}" onclick="BundlesView.filterStatus('Expired')">Expired</button>
+        ${['', 'Live', 'Active', 'Depleted', 'Expired'].map(function(s) {
+          var label = s || 'All';
+          var cls = state.statusFilter === s ? 'active' : '';
+          return '<button class="tab-btn ' + cls + '" onclick="BundlesView.filterStatus(\'' + s + '\')">' + label + '</button>';
+        }).join('')}
       </div>
       <div class="glass-card rounded-2xl p-5">
         <div id="bundles-table">${Components.loading('Loading bundles...')}</div>
@@ -130,7 +131,7 @@
               { label: 'Start', render: r => Utils.formatDate(r.start_time) },
               { label: 'End', render: r => Utils.formatDate(r.end_time) },
               { label: 'Efficiency', render: r => r._efficiency ? Components.badge(r._efficiency, r._effColor) : '-' },
-              { label: 'Status', render: r => Components.statusBadge(r.status_name) },
+              { label: 'Status', render: r => Components.statusBadge(Utils.computeInstanceStatus(r)) },
             ],
             rows: instanceRows,
           })}

@@ -192,7 +192,7 @@
             { label: 'Start', render: r => Utils.formatDate(r.start_time) },
             { label: 'End', render: r => Utils.formatDate(r.end_time) },
             { label: 'Days Left', render: r => { const d = Utils.daysUntil(r.end_time); if (d == null) return '-'; if (d < 0) return '<span class="text-simsy-grey-dark">' + d + 'd</span>'; if (d < 7) return '<span class="text-red-400 font-medium">' + d + 'd</span>'; return '<span class="text-simsy-grey">' + d + 'd</span>'; }},
-            { label: 'Status', render: r => Components.statusBadge(r.status_name) },
+            { label: 'Status', render: r => Components.statusBadge(Utils.computeInstanceStatus(r)) },
           ],
           rows: instances,
         });

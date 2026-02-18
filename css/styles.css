@@ -51,7 +51,19 @@
 .fade-in-2 { animation: fadeIn 0.5s ease-out 0.3s forwards;  opacity: 0; }
 .fade-in-3 { animation: fadeIn 0.5s ease-out 0.45s forwards; opacity: 0; }
 
-/* --- Sidebar --- */
+/* --- Sidebar (fixed, non-scrolling) --- */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 3.5rem;
+  bottom: 0;
+  width: 14rem;
+  z-index: 40;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(20px);
+}
 .sidebar-link {
   transition: all 0.2s ease;
 }
@@ -337,10 +349,13 @@ pre code { font-size: 12px; line-height: 1.6; }
 
 /* --- Responsive sidebar --- */
 @media (max-width: 1024px) {
-  .sidebar { width: 0; overflow: hidden; }
-  .sidebar.open { width: 14rem; }
+  .sidebar { width: 0; overflow: hidden; position: fixed; }
+  .sidebar.block { width: 14rem; }
   .main-content { margin-left: 0 !important; }
 }
+
+/* --- Badge for LIVE status --- */
+.badge-live { background: rgba(34, 211, 238, 0.15); color: #22d3ee; font-weight: 600; }
 
 /* --- Error banner --- */
 .error-banner {
