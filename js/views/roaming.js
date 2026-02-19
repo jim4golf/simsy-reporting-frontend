@@ -55,7 +55,7 @@
       const byCountry = {};
       const byOperator = {};
       records.forEach(r => {
-        const country = r.serving_country_name || 'Unknown';
+        const country = Utils.tadigToCountry(r.serving_country_name);
         const operator = r.serving_operator_name || 'Unknown';
         const bytes = Number(r.uplink_bytes || 0) + Number(r.downlink_bytes || 0);
         const cost = Number(r.buy_charge || 0);

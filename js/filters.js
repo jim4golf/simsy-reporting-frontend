@@ -14,24 +14,25 @@ const Filters = (() => {
    * Load tenants from the API (called once on dashboard load).
    */
   async function init() {
-    if (!Auth.isAdmin()) return;
     if (loaded) return;
 
     try {
-      const data = await API.get('/filters/tenants', {}, true);
-      tenants = data.tenants || [];
+      if (Auth.isAdmin()) {
+        const data = await API.get('/filters/tenants', {}, true);
+        tenants = data.tenants || [];
+      }
+      // Load customers for all roles (API scopes by tenant for non-admin)
+      await loadCustomers();
       loaded = true;
     } catch (err) {
-      console.error('Failed to load tenant filters:', err);
+      console.error('Failed to load filters:', err);
     }
   }
 
   /**
-   * Load customers for the currently selected tenant.
+   * Load customers — works for all roles. API scopes automatically.
    */
   async function loadCustomers() {
-    if (!Auth.isAdmin()) return;
-
     try {
       const params = {};
       if (selectedTenantId) params.tenant_id = selectedTenantId;
@@ -45,36 +46,36 @@ const Filters = (() => {
 
   /**
    * Render the filter bar HTML.
-   * Returns empty string for non-admin users.
+   * Admin: Tenant + Customer dropdowns. Tenant-role: Customer dropdown only.
    */
   function renderBar() {
-    if (!Auth.isAdmin() || tenants.length === 0) return '';
-
-    const tenantOptions = tenants.map(t =>
-      `<option value="${Utils.escapeHtml(t.tenant_id)}" ${t.tenant_id === selectedTenantId ? 'selected' : ''}>${Utils.escapeHtml(t.tenant_name || t.tenant_id)}</option>`
-    ).join('');
+    if (!loaded) return '';
+    // Need either tenants (admin) or customers (any role) to show bar
+    if (!Auth.isAdmin() && customers.length === 0) return '';
 
     const customerOptions = customers.map(c =>
-      `<option value="${Utils.escapeHtml(c)}" ${c === selectedCustomer ? 'selected' : ''}>${Utils.escapeHtml(c)}</option>`
+      '<option value="' + Utils.escapeHtml(c) + '" ' + (c === selectedCustomer ? 'selected' : '') + '>' + Utils.escapeHtml(c) + '</option>'
     ).join('');
 
-    return `
-      <div class="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-xl bg-simsy-surface/50 border border-simsy-grey-dark/30">
-        <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-          <span class="text-xs font-semibold text-simsy-grey uppercase tracking-wider">Scope</span>
-        </div>
-        <select id="filter-tenant" class="filter-select text-sm" onchange="Filters.onTenantChange(this.value)">
-          <option value="">All Tenants</option>
-          ${tenantOptions}
-        </select>
-        <select id="filter-customer" class="filter-select text-sm" onchange="Filters.onCustomerChange(this.value)">
-          <option value="">All Customers</option>
-          ${customerOptions}
-        </select>
-        ${(selectedTenantId || selectedCustomer) ? `<button onclick="Filters.clearAll()" class="text-xs text-simsy-grey hover:text-simsy-white transition-colors">✕ Clear</button>` : ''}
-      </div>
-    `;
+    var tenantHtml = '';
+    if (Auth.isAdmin() && tenants.length > 0) {
+      const tenantOptions = tenants.map(t =>
+        '<option value="' + Utils.escapeHtml(t.tenant_id) + '" ' + (t.tenant_id === selectedTenantId ? 'selected' : '') + '>' + Utils.escapeHtml(t.tenant_name || t.tenant_id) + '</option>'
+      ).join('');
+      tenantHtml = '<select id="filter-tenant" class="filter-select text-sm" onchange="Filters.onTenantChange(this.value)"><option value="">All Tenants</option>' + tenantOptions + '</select>';
+    }
+
+    return '<div class="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-xl bg-simsy-surface/50 border border-simsy-grey-dark/30">' +
+      '<div class="flex items-center gap-2">' +
+        '<svg class="w-4 h-4 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>' +
+        '<span class="text-xs font-semibold text-simsy-grey uppercase tracking-wider">Scope</span>' +
+      '</div>' +
+      tenantHtml +
+      '<select id="filter-customer" class="filter-select text-sm" onchange="Filters.onCustomerChange(this.value)">' +
+        '<option value="">All Customers</option>' + customerOptions +
+      '</select>' +
+      ((selectedTenantId || selectedCustomer) ? '<button onclick="Filters.clearAll()" class="text-xs text-simsy-grey hover:text-simsy-white transition-colors">\u2715 Clear</button>' : '') +
+    '</div>';
   }
 
   /**
@@ -157,9 +158,9 @@ const Filters = (() => {
       refreshCurrentView();
     },
 
-    /** Expose for views to check if admin */
+    /** Check if filters are loaded and available */
     isActive() {
-      return Auth.isAdmin() && loaded && tenants.length > 0;
+      return loaded && (tenants.length > 0 || customers.length > 0);
     },
   };
 })();

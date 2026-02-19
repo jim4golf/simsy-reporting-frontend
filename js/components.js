@@ -56,8 +56,10 @@ const Components = {
     const to = Math.min(page * perPage, total);
 
     let buttons = '';
+    // First
+    buttons += `<button class="pagination-btn" onclick="${onPageChange}(1)" ${page <= 1 ? 'disabled' : ''} title="First page">&laquo;</button>`;
     // Previous
-    buttons += `<button class="pagination-btn" onclick="${onPageChange}(${page - 1})" ${page <= 1 ? 'disabled' : ''}>Prev</button>`;
+    buttons += `<button class="pagination-btn" onclick="${onPageChange}(${page - 1})" ${page <= 1 ? 'disabled' : ''}>&lsaquo; Prev</button>`;
 
     // Page numbers (show up to 5)
     const start = Math.max(1, page - 2);
@@ -67,7 +69,9 @@ const Components = {
     }
 
     // Next
-    buttons += `<button class="pagination-btn" onclick="${onPageChange}(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Next</button>`;
+    buttons += `<button class="pagination-btn" onclick="${onPageChange}(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Next &rsaquo;</button>`;
+    // Last
+    buttons += `<button class="pagination-btn" onclick="${onPageChange}(${totalPages})" ${page >= totalPages ? 'disabled' : ''} title="Last page">&raquo;</button>`;
 
     return `
       <div class="flex items-center justify-between mt-4">

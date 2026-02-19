@@ -16,7 +16,7 @@
     { key: 'seq',      label: 'Seq',        defaultOn: true,  render: r => r.sequence != null ? r.sequence + '/' + (r.sequence_max || '?') : '-' },
     { key: 'data',     label: 'Data',       defaultOn: true,  render: r => Utils.formatBytes(Number(r.charged_consumption || 0)) },
     { key: 'operator', label: 'Operator',   defaultOn: true,  render: r => '<span class="truncate max-w-[100px] inline-block text-simsy-grey">' + Utils.escapeHtml(r.serving_operator_name || '-') + '</span>' },
-    { key: 'country',  label: 'Country',    defaultOn: true,  render: r => Utils.escapeHtml(r.serving_country_name || '-') },
+    { key: 'country',  label: 'Country',    defaultOn: true,  render: r => Utils.escapeHtml(Utils.tadigToCountryShort(r.serving_country_name)) },
     { key: 'status',   label: 'Status',     defaultOn: true,  render: r => Components.statusBadge(r.status_moniker) },
     { key: 'buy',      label: 'Buy',        defaultOn: false, render: r => Utils.formatCurrency(r.buy_charge, r.buy_currency) },
     { key: 'sell',     label: 'Sell',       defaultOn: false, render: r => Utils.formatCurrency(r.sell_charge, r.sell_currency) },
@@ -188,7 +188,15 @@
             { label: 'Bundle', render: r => Utils.escapeHtml(r.bundle_name || '-') },
             { label: 'Moniker', render: r => '<span class="font-mono text-xs text-simsy-grey">' + Utils.escapeHtml(r.bundle_moniker || '-') + '</span>' },
             { label: 'Seq', render: r => r.sequence != null ? r.sequence + '/' + (r.sequence_max || '?') : '-' },
-            { label: 'Data Usage', render: r => (r.data_used_mb != null && r.data_allowance_mb != null) ? Components.dataProgressBar(r.data_used_mb, r.data_allowance_mb) : '-' },
+            { label: 'Data Used', render: r => {
+              if (r.data_used_mb != null && r.data_allowance_mb != null && r.data_allowance_mb > 0) {
+                return Components.dataProgressBar(r.data_used_mb, r.data_allowance_mb);
+              }
+              if (r.data_used_mb != null && r.data_used_mb > 0) {
+                return '<span class="text-xs text-simsy-white">' + Utils.formatMB(r.data_used_mb) + '</span>';
+              }
+              return '-';
+            }},
             { label: 'Start', render: r => Utils.formatDate(r.start_time) },
             { label: 'End', render: r => Utils.formatDate(r.end_time) },
             { label: 'Days Left', render: r => { const d = Utils.daysUntil(r.end_time); if (d == null) return '-'; if (d < 0) return '<span class="text-simsy-grey-dark">' + d + 'd</span>'; if (d < 7) return '<span class="text-red-400 font-medium">' + d + 'd</span>'; return '<span class="text-simsy-grey">' + d + 'd</span>'; }},
@@ -207,7 +215,7 @@
           { label: 'Seq', render: r => r.sequence != null ? r.sequence + '/' + (r.sequence_max || '?') : '-' },
           { label: 'Data', render: r => Utils.formatBytes(Number(r.charged_consumption || 0)) },
           { label: 'Operator', render: r => Utils.escapeHtml(r.serving_operator_name || '-') },
-          { label: 'Country', render: r => Utils.escapeHtml(r.serving_country_name || '-') },
+          { label: 'Country', render: r => Utils.escapeHtml(Utils.tadigToCountryShort(r.serving_country_name)) },
           { label: 'Status', render: r => Components.statusBadge(r.status_moniker) },
         ],
         rows: usageRows,

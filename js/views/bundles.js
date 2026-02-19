@@ -11,7 +11,7 @@
       subtitle: 'Bundle catalog and efficiency analysis',
     }) + Filters.renderBar() + `
       <div class="tab-group mb-4">
-        ${['', 'Live', 'Active', 'Depleted', 'Expired'].map(function(s) {
+        ${['', 'Active', 'Terminated'].map(function(s) {
           var label = s || 'All';
           var cls = state.statusFilter === s ? 'active' : '';
           return '<button class="tab-btn ' + cls + '" onclick="BundlesView.filterStatus(\'' + s + '\')">' + label + '</button>';
@@ -127,7 +127,15 @@
               { label: 'ICCID', render: r => `<span class="font-mono text-xs">${Utils.truncateIccid(r.iccid)}</span>` },
               { label: 'Customer', render: r => Utils.escapeHtml(r.customer_name || '-') },
               { label: 'Seq', render: r => r.sequence != null ? `${r.sequence}/${r.sequence_max || '?'}` : '-' },
-              { label: 'Data Usage', render: r => r.data_allowance_mb ? Components.dataProgressBar(r.data_used_mb, r.data_allowance_mb) : '-' },
+              { label: 'Data Used', render: r => {
+                if (r.data_used_mb != null && r.data_allowance_mb != null && r.data_allowance_mb > 0) {
+                  return Components.dataProgressBar(r.data_used_mb, r.data_allowance_mb);
+                }
+                if (r.data_used_mb != null && r.data_used_mb > 0) {
+                  return '<span class="text-xs text-simsy-white">' + Utils.formatMB(r.data_used_mb) + '</span>';
+                }
+                return '-';
+              }},
               { label: 'Start', render: r => Utils.formatDate(r.start_time) },
               { label: 'End', render: r => Utils.formatDate(r.end_time) },
               { label: 'Efficiency', render: r => r._efficiency ? Components.badge(r._efficiency, r._effColor) : '-' },

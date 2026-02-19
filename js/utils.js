@@ -151,6 +151,76 @@ const Utils = {
   },
 
   /**
+   * TADIG code prefix (first 3 chars) to country name.
+   */
+  _tadigCountries: {
+    GBR: 'United Kingdom', USA: 'United States', DEU: 'Germany', FRA: 'France',
+    ESP: 'Spain', ITA: 'Italy', NLD: 'Netherlands', BEL: 'Belgium', PRT: 'Portugal',
+    IRL: 'Ireland', CHE: 'Switzerland', AUT: 'Austria', SWE: 'Sweden', NOR: 'Norway',
+    DNK: 'Denmark', FIN: 'Finland', POL: 'Poland', CZE: 'Czech Republic',
+    HUN: 'Hungary', ROU: 'Romania', BGR: 'Bulgaria', HRV: 'Croatia', SVK: 'Slovakia',
+    SVN: 'Slovenia', LTU: 'Lithuania', LVA: 'Latvia', EST: 'Estonia', LUX: 'Luxembourg',
+    MLT: 'Malta', CYP: 'Cyprus', GRC: 'Greece', TUR: 'Turkey', ISR: 'Israel',
+    ARE: 'UAE', SAU: 'Saudi Arabia', QAT: 'Qatar', KWT: 'Kuwait', BHR: 'Bahrain',
+    OMN: 'Oman', JOR: 'Jordan', LBN: 'Lebanon', EGY: 'Egypt', MAR: 'Morocco',
+    TUN: 'Tunisia', ZAF: 'South Africa', KEN: 'Kenya', NGA: 'Nigeria', GHA: 'Ghana',
+    TZA: 'Tanzania', UGA: 'Uganda', ETH: 'Ethiopia', SEN: 'Senegal', CMR: 'Cameroon',
+    CIV: "Cote d'Ivoire", MOZ: 'Mozambique', AGO: 'Angola', COD: 'DR Congo',
+    CHN: 'China', JPN: 'Japan', KOR: 'South Korea', IND: 'India', IDN: 'Indonesia',
+    THA: 'Thailand', MYS: 'Malaysia', SGP: 'Singapore', PHL: 'Philippines',
+    VNM: 'Vietnam', TWN: 'Taiwan', HKG: 'Hong Kong', MAC: 'Macau', MMR: 'Myanmar',
+    KHM: 'Cambodia', LAO: 'Laos', BGD: 'Bangladesh', LKA: 'Sri Lanka', PAK: 'Pakistan',
+    AUS: 'Australia', NZL: 'New Zealand', CAN: 'Canada', MEX: 'Mexico',
+    BRA: 'Brazil', ARG: 'Argentina', CHL: 'Chile', COL: 'Colombia', PER: 'Peru',
+    URY: 'Uruguay', PRY: 'Paraguay', ECU: 'Ecuador', VEN: 'Venezuela',
+    CRI: 'Costa Rica', PAN: 'Panama', DOM: 'Dominican Republic', JAM: 'Jamaica',
+    TTO: 'Trinidad & Tobago', GTM: 'Guatemala', HND: 'Honduras', SLV: 'El Salvador',
+    RUS: 'Russia', UKR: 'Ukraine', BLR: 'Belarus', KAZ: 'Kazakhstan',
+    UZB: 'Uzbekistan', GEO: 'Georgia', ARM: 'Armenia', AZE: 'Azerbaijan',
+    MDA: 'Moldova', ISL: 'Iceland', ALB: 'Albania', MKD: 'North Macedonia',
+    SRB: 'Serbia', MNE: 'Montenegro', BIH: 'Bosnia & Herzegovina',
+    AND: 'Andorra', MCO: 'Monaco', LIE: 'Liechtenstein', SMR: 'San Marino',
+    MNG: 'Mongolia', NPL: 'Nepal', AFG: 'Afghanistan', IRQ: 'Iraq', IRN: 'Iran',
+    SYR: 'Syria', YEM: 'Yemen', LBY: 'Libya', SDN: 'Sudan', SSD: 'South Sudan',
+    RWA: 'Rwanda', BDI: 'Burundi', MWI: 'Malawi', ZMB: 'Zambia', ZWE: 'Zimbabwe',
+    BWA: 'Botswana', NAM: 'Namibia', SWZ: 'Eswatini', LSO: 'Lesotho',
+    MDG: 'Madagascar', MUS: 'Mauritius', REU: 'Reunion', GLP: 'Guadeloupe',
+    MTQ: 'Martinique', GUF: 'French Guiana', PYF: 'French Polynesia',
+    NCL: 'New Caledonia', FJI: 'Fiji', PNG: 'Papua New Guinea',
+    PRI: 'Puerto Rico', BMU: 'Bermuda', CYM: 'Cayman Islands',
+    BRB: 'Barbados', BHS: 'Bahamas', CUB: 'Cuba', HTI: 'Haiti',
+  },
+
+  /**
+   * Convert a TADIG code to a country name.
+   * e.g. "GBRCN" -> "United Kingdom", "DEUD1" -> "Germany"
+   */
+  _tadigShort: {
+    GBR: 'UK', USA: 'US', DEU: 'DE', FRA: 'FR', ESP: 'ES', ITA: 'IT',
+    NLD: 'NL', BEL: 'BE', PRT: 'PT', IRL: 'IE', CHE: 'CH', AUT: 'AT',
+    SWE: 'SE', NOR: 'NO', DNK: 'DK', FIN: 'FI', POL: 'PL', CZE: 'CZ',
+    HUN: 'HU', ROU: 'RO', BGR: 'BG', HRV: 'HR', SVK: 'SK', SVN: 'SI',
+    LTU: 'LT', LVA: 'LV', EST: 'EE', LUX: 'LU', GRC: 'GR', TUR: 'TR',
+    ARE: 'UAE', SAU: 'KSA', ZAF: 'SA', AUS: 'AU', NZL: 'NZ', CAN: 'CA',
+    MEX: 'MX', BRA: 'BR', ARG: 'AR', CHN: 'CN', JPN: 'JP', KOR: 'KR',
+    IND: 'IN', IDN: 'ID', THA: 'TH', MYS: 'MY', SGP: 'SG', PHL: 'PH',
+    VNM: 'VN', TWN: 'TW', HKG: 'HK', RUS: 'RU', UKR: 'UA',
+    DOM: 'Dom Rep', TTO: 'T&T', BIH: 'BiH', MKD: 'N. Macedonia',
+  },
+
+  tadigToCountry(tadig) {
+    if (!tadig || tadig.length < 3) return tadig || 'Unknown';
+    var prefix = tadig.substring(0, 3).toUpperCase();
+    return this._tadigCountries[prefix] || tadig;
+  },
+
+  tadigToCountryShort(tadig) {
+    if (!tadig || tadig.length < 3) return tadig || '?';
+    var prefix = tadig.substring(0, 3).toUpperCase();
+    return this._tadigShort[prefix] || this._tadigCountries[prefix] || tadig;
+  },
+
+  /**
    * Escape HTML to prevent XSS.
    */
   escapeHtml(str) {

@@ -6,10 +6,11 @@
   let state = { page: 1, perPage: 50, filters: {} };
 
   async function render(container) {
-    state = { page: 1, perPage: 50, filters: {}, ...Router.getParams() };
+    const routerParams = Router.getParams() || {};
+    state = { page: state.page || 1, perPage: 50, filters: state.filters || {}, ...routerParams };
 
     container.innerHTML = Components.viewHeader({
-      title: 'Bundle Instances',
+      title: 'Bundle Report',
       subtitle: 'Monitor bundle lifecycle, depletion and expiry',
     }) + Filters.renderBar() + `
       <!-- Summary Cards -->
@@ -19,7 +20,7 @@
 
       <!-- Status Tabs -->
       <div class="tab-group mb-4">
-        ${['', 'Live', 'Active', 'Depleted', 'Expired'].map(function(s) {
+        ${['', 'Live', 'Active', 'Depleted', 'Terminated'].map(function(s) {
           var label = s || 'All';
           var cls = (state.filters.status || '') === s ? 'active' : '';
           return '<button class="tab-btn ' + cls + '" onclick="InstancesView.filterStatus(\'' + s + '\')">' + label + '</button>';
@@ -105,7 +106,15 @@
           { label: 'Customer', render: r => Utils.escapeHtml(r.customer_name || '-') },
           { label: 'Bundle', render: r => Utils.escapeHtml(r.bundle_name || '-') },
           { label: 'Seq', render: r => r.sequence != null ? `${r.sequence}/${r.sequence_max || '?'}` : '-' },
-          { label: 'Data Usage', render: r => (r.data_used_mb != null && r.data_allowance_mb != null) ? Components.dataProgressBar(r.data_used_mb, r.data_allowance_mb) : '-' },
+          { label: 'Data Used', render: r => {
+            if (r.data_used_mb != null && r.data_allowance_mb != null && r.data_allowance_mb > 0) {
+              return Components.dataProgressBar(r.data_used_mb, r.data_allowance_mb);
+            }
+            if (r.data_used_mb != null && r.data_used_mb > 0) {
+              return '<span class="text-xs text-simsy-white">' + Utils.formatMB(r.data_used_mb) + '</span>';
+            }
+            return '-';
+          }},
           { label: 'Start', render: r => Utils.formatDate(r.start_time) },
           { label: 'End', render: r => Utils.formatDate(r.end_time) },
           { label: 'Days Left', render: r => {
