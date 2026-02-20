@@ -136,15 +136,77 @@
 
   async function loadUsageChart(from, to, groupBy) {
     try {
-      const data = await API.get('/usage/summary', { group_by: groupBy, from, to, ...Filters.getParams() });
-      const labels = (data.data || []).map(d => Utils.formatChartDate(d.date));
-      const values = (data.data || []).map(d => Number(d.total_bytes) / (1024 * 1024 * 1024)); // GB
+      // Adjust date range based on groupBy so there's meaningful data
+      let adjustedFrom = from;
+      let adjustedTo = to;
+      let subtitleText = '';
 
-      Charts.createLineChart('overview-usage-chart', {
-        labels,
-        datasets: [{ label: 'Data Usage (GB)', data: values, color: 'blue' }],
-        yLabel: 'GB',
-      });
+      if (groupBy === 'monthly') {
+        // Always fetch full year: Jan–Dec of the current year
+        const year = new Date().getFullYear();
+        adjustedFrom = year + '-01-01';
+        adjustedTo = year + '-12-31';
+        subtitleText = year + ' — Monthly usage';
+      } else if (groupBy === 'annual') {
+        // Show current year + next 9 years (10-year window)
+        const startYear = new Date().getFullYear();
+        adjustedFrom = startYear + '-01-01';
+        adjustedTo = (startYear + 9) + '-12-31';
+        subtitleText = startYear + ' – ' + (startYear + 9) + ' — Yearly usage';
+      } else {
+        const days = CONFIG.DATE_RANGES[state.dateRange]?.days || 30;
+        subtitleText = 'Last ' + days + ' days';
+      }
+
+      const data = await API.get('/usage/summary', { group_by: groupBy, from: adjustedFrom, to: adjustedTo, ...Filters.getParams() });
+
+      let labels, values;
+
+      if (groupBy === 'monthly') {
+        // Build all 12 months, filling gaps with zero
+        const year = new Date().getFullYear();
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const dataMap = {};
+        (data.data || []).forEach(d => {
+          const dt = new Date(d.date);
+          const monthIdx = dt.getMonth(); // 0-11
+          dataMap[monthIdx] = Number(d.total_bytes) / (1024 * 1024 * 1024);
+        });
+        labels = monthNames;
+        values = monthNames.map((_, i) => dataMap[i] || 0);
+      } else if (groupBy === 'annual') {
+        // Build all 10 years, filling gaps with zero
+        const startYear = new Date().getFullYear();
+        const dataMap = {};
+        (data.data || []).forEach(d => {
+          const yr = new Date(d.date).getFullYear();
+          dataMap[yr] = Number(d.total_bytes) / (1024 * 1024 * 1024);
+        });
+        labels = Array.from({ length: 10 }, (_, i) => (startYear + i).toString());
+        values = labels.map(yr => dataMap[Number(yr)] || 0);
+      } else {
+        labels = (data.data || []).map(d => Utils.formatChartDate(d.date));
+        values = (data.data || []).map(d => Number(d.total_bytes) / (1024 * 1024 * 1024));
+      }
+
+      // Use bar chart for monthly/annual, line chart for daily
+      if (groupBy === 'monthly' || groupBy === 'annual') {
+        Charts.createBarChart('overview-usage-chart', {
+          labels,
+          datasets: [{ label: 'Data Usage (GB)', data: values, color: 'blue' }],
+          yLabel: 'GB',
+        });
+      } else {
+        Charts.createLineChart('overview-usage-chart', {
+          labels,
+          datasets: [{ label: 'Data Usage (GB)', data: values, color: 'blue' }],
+          yLabel: 'GB',
+        });
+      }
+
+      // Update subtitle
+      const subtitle = document.getElementById('chart-subtitle');
+      if (subtitle) subtitle.textContent = subtitleText;
 
       // Update toggle active state
       document.querySelectorAll('#view-container .tab-btn').forEach(btn => {
