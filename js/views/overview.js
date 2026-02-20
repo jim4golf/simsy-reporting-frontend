@@ -142,11 +142,14 @@
       let subtitleText = '';
 
       if (groupBy === 'monthly') {
-        // Always fetch full year: Jan–Dec of the current year
-        const year = new Date().getFullYear();
-        adjustedFrom = year + '-01-01';
-        adjustedTo = year + '-12-31';
-        subtitleText = year + ' — Monthly usage';
+        // Rolling 12 months: from 11 months ago to current month
+        const now = new Date();
+        const startMonth = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        adjustedFrom = startMonth.toISOString().split('T')[0];
+        adjustedTo = Utils.today();
+        const startLabel = startMonth.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+        const endLabel = now.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+        subtitleText = startLabel + ' – ' + endLabel;
       } else if (groupBy === 'annual') {
         // Show current year + next 9 years (10-year window)
         const startYear = new Date().getFullYear();
@@ -163,17 +166,22 @@
       let labels, values;
 
       if (groupBy === 'monthly') {
-        // Build all 12 months, filling gaps with zero
-        const year = new Date().getFullYear();
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        // Build rolling 12 months, filling gaps with zero
+        const now = new Date();
+        const months = [];
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) });
+        }
+        // Map API data by year-month key
         const dataMap = {};
         (data.data || []).forEach(d => {
           const dt = new Date(d.date);
-          const monthIdx = dt.getMonth(); // 0-11
-          dataMap[monthIdx] = Number(d.total_bytes) / (1024 * 1024 * 1024);
+          const key = dt.getFullYear() + '-' + dt.getMonth();
+          dataMap[key] = Number(d.total_bytes) / (1024 * 1024 * 1024);
         });
-        labels = monthNames;
-        values = monthNames.map((_, i) => dataMap[i] || 0);
+        labels = months.map(m => m.label);
+        values = months.map(m => dataMap[m.year + '-' + m.month] || 0);
       } else if (groupBy === 'annual') {
         // Build all 10 years, filling gaps with zero
         const startYear = new Date().getFullYear();
