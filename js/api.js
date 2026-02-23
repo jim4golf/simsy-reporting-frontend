@@ -118,6 +118,26 @@ const API = (() => {
       return request('GET', path, { params, skipCache });
     },
 
+    /**
+     * Fetch ALL records by paginating through results.
+     * Returns a flat array of all data rows.
+     */
+    async getAll(path, params) {
+      const pageSize = CONFIG.MAX_PAGE_SIZE || 1000;
+      let page = 1;
+      let allData = [];
+      let hasMore = true;
+      while (hasMore) {
+        const result = await request('GET', path, { params: { ...params, page, per_page: pageSize }, skipCache: true });
+        const rows = result.data || [];
+        allData = allData.concat(rows);
+        const pagination = result.pagination || {};
+        hasMore = page < (pagination.total_pages || 1);
+        page++;
+      }
+      return allData;
+    },
+
     post(path, body) {
       return request('POST', path, { body });
     },

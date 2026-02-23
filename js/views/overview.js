@@ -250,8 +250,7 @@
 
   async function loadBundleHealth() {
     try {
-      const data = await API.get('/bundle-instances', { status: 'Active', per_page: 1000, ...Filters.getParams() });
-      const instances = data.data || [];
+      const instances = await API.getAll('/bundle-instances', { status: 'Active', ...Filters.getParams() });
 
       let healthy = 0, low = 0, critical = 0, depleted = 0;
       instances.forEach(inst => {
@@ -295,13 +294,10 @@
     try {
       const fp = Filters.getParams();
       // Fetch active instances AND recently expired non-final instances (stalled sequences)
-      const [activeData, expiredData] = await Promise.all([
-        API.get('/bundle-instances', { status: 'Active', per_page: 500, ...fp }),
-        API.get('/bundle-instances', { expiring_before: Utils.today(), per_page: 500, ...fp }),
+      const [activeInstances, expiredInstances] = await Promise.all([
+        API.getAll('/bundle-instances', { status: 'Active', ...fp }),
+        API.getAll('/bundle-instances', { expiring_before: Utils.today(), ...fp }),
       ]);
-
-      const activeInstances = activeData.data || [];
-      const expiredInstances = expiredData.data || [];
       const alerts = [];
 
       // Check active instances for depleted, final expiring, nearly depleted, expiring soon
