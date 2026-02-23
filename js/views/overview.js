@@ -160,11 +160,12 @@
         const endLabel = now.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
         subtitleText = startLabel + ' – ' + endLabel;
       } else if (groupBy === 'annual') {
-        // Show current year + next 9 years (10-year window)
-        const startYear = new Date().getFullYear();
+        // Show 5 years back + current year (6-year window)
+        const currentYear = new Date().getFullYear();
+        const startYear = currentYear - 5;
         adjustedFrom = startYear + '-01-01';
-        adjustedTo = (startYear + 9) + '-12-31';
-        subtitleText = startYear + ' – ' + (startYear + 9) + ' — Yearly usage';
+        adjustedTo = currentYear + '-12-31';
+        subtitleText = startYear + ' – ' + currentYear + ' — Yearly usage';
       } else {
         const days = CONFIG.DATE_RANGES[state.dateRange]?.days || 30;
         subtitleText = 'Last ' + days + ' days';
@@ -192,14 +193,15 @@
         labels = months.map(m => m.label);
         values = months.map(m => dataMap[m.year + '-' + m.month] || 0);
       } else if (groupBy === 'annual') {
-        // Build all 10 years, filling gaps with zero
-        const startYear = new Date().getFullYear();
+        // Build 6 years (5 back + current), filling gaps with zero
+        const currentYear = new Date().getFullYear();
+        const startYear = currentYear - 5;
         const dataMap = {};
         (data.data || []).forEach(d => {
           const yr = new Date(d.date).getFullYear();
           dataMap[yr] = Number(d.total_charged || d.total_bytes) / (1024 * 1024 * 1024);
         });
-        labels = Array.from({ length: 10 }, (_, i) => (startYear + i).toString());
+        labels = Array.from({ length: 6 }, (_, i) => (startYear + i).toString());
         values = labels.map(yr => dataMap[Number(yr)] || 0);
       } else {
         labels = (data.data || []).map(d => Utils.formatChartDate(d.date));
