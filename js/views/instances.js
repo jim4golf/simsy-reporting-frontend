@@ -42,7 +42,7 @@
 
       <!-- Filters -->
       <div class="flex flex-wrap items-center gap-3 mb-4">
-        <input type="text" id="inst-filter-iccid" class="filter-input" placeholder="Filter by ICCID..." value="${state.filters.iccid || ''}">
+        <input type="text" id="inst-filter-iccid" class="filter-input" placeholder="Search ICCID (partial)..." value="${state.filters.iccid || ''}">
         <input type="date" id="inst-filter-expiring" class="filter-input" placeholder="Expiring before...">
         <button onclick="InstancesView.search()" class="btn-primary text-xs py-2 px-4">Search</button>
         <button onclick="InstancesView.clear()" class="btn-secondary text-xs py-2 px-3">Clear</button>

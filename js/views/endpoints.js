@@ -37,7 +37,7 @@
       subtitle: 'SIM endpoint status, health, and usage',
     }) + Filters.renderBar() + `
       <div class="flex flex-wrap items-center gap-3 mb-6">
-        <input type="text" id="ep-filter-name" class="filter-input" placeholder="Search endpoint name..." onkeydown="if(event.key==='Enter'){EndpointsView.search()}">
+        <input type="text" id="ep-filter-name" class="filter-input" placeholder="Search name or ICCID..." onkeydown="if(event.key==='Enter'){EndpointsView.search()}">
         <select id="ep-filter-status" class="filter-select">
           <option value="">All Statuses</option>
           <option value="Active">Active</option>
@@ -62,20 +62,13 @@
     state.page = page;
     const params = { page, per_page: state.perPage, ...Filters.getParams() };
     if (state.filters.status) params.status = state.filters.status;
+    const nameFilter = document.getElementById('ep-filter-name')?.value || '';
+    if (nameFilter) params.search = nameFilter;
 
     try {
       const data = await API.get('/endpoints', params, true);
-      let rows = data.data || [];
+      const rows = data.data || [];
       const pagination = data.pagination || {};
-
-      // Client-side name filter
-      const nameFilter = (document.getElementById('ep-filter-name')?.value || '').toLowerCase();
-      if (nameFilter) {
-        rows = rows.filter(ep =>
-          (ep.endpoint_name || '').toLowerCase().includes(nameFilter) ||
-          (ep.endpoint_identifier || '').toLowerCase().includes(nameFilter)
-        );
-      }
 
       if (rows.length === 0) {
         gridContainer.innerHTML = Components.emptyState('No endpoints found');
