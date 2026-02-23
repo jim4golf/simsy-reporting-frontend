@@ -118,12 +118,12 @@
             <div class="w-10 h-10 rounded-xl bg-simsy-blue/10 flex items-center justify-center">
               <svg class="w-5 h-5 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
             </div>
+            <select onchange="OverviewView.changeDateRange(this.value)" class="bg-simsy-surface text-simsy-grey text-xs border border-simsy-grey-dark/40 rounded-lg px-2 py-1 outline-none cursor-pointer">
+              ${rangeOptions}
+            </select>
           </div>
           <p class="text-2xl font-bold text-simsy-white font-display">${Utils.escapeHtml(Utils.formatBytes(totalBytes))}</p>
           <p class="text-sm text-simsy-grey mt-1">Total Data Usage</p>
-          <select onchange="OverviewView.changeDateRange(this.value)" class="mt-2 bg-simsy-surface text-simsy-grey text-xs border border-simsy-grey-dark/40 rounded-lg px-2 py-1 outline-none cursor-pointer">
-            ${rangeOptions}
-          </select>
         </div>`,
         Components.statCard({
           icon: '<svg class="w-5 h-5 text-simsy-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>',
