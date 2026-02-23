@@ -30,6 +30,36 @@
 .stat-glow-orange { box-shadow: 0 0 20px rgba(245, 158, 11, 0.08); }
 .stat-glow-red    { box-shadow: 0 0 20px rgba(239, 68, 68, 0.08); }
 
+/* Clickable stat card */
+.stat-card-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.stat-card-clickable:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 4px 24px rgba(14, 165, 233, 0.15);
+}
+.stat-card-clickable:active {
+  transform: translateY(0);
+}
+
+/* Filter banner for navigated views */
+.filter-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  margin-bottom: 1rem;
+}
+.filter-banner p {
+  font-size: 0.875rem;
+  color: var(--simsy-blue, #0ea5e9);
+}
+
 .glow-blue  { box-shadow: 0 0 40px rgba(14, 165, 233, 0.12), 0 0 80px rgba(14, 165, 233, 0.05); }
 .glow-green { box-shadow: 0 0 40px rgba(16, 185, 129, 0.12), 0 0 80px rgba(16, 185, 129, 0.05); }
 

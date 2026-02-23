@@ -6,12 +6,15 @@ const Components = {
   /**
    * Render a KPI stat card.
    */
-  statCard({ icon, value, label, change, changeColor, glowColor }) {
+  statCard({ icon, value, label, subtitle, change, changeColor, glowColor, onClick }) {
     const changeHtml = change != null ? `
       <span class="text-xs font-medium badge-${changeColor || 'green'} px-2 py-1 rounded-full">${change}</span>
     ` : '';
+    const subtitleHtml = subtitle ? `<p class="text-xs text-simsy-grey-dark mt-0.5">${Utils.escapeHtml(subtitle)}</p>` : '';
+    const clickClass = onClick ? ' stat-card-clickable' : '';
+    const clickAttr = onClick ? ` onclick="${onClick}" role="button" tabindex="0"` : '';
     return `
-      <div class="glass-card rounded-2xl p-5 stat-glow-${glowColor || 'blue'} transition-all duration-300">
+      <div class="glass-card rounded-2xl p-5 stat-glow-${glowColor || 'blue'} transition-all duration-300${clickClass}"${clickAttr}>
         <div class="flex items-center justify-between mb-3">
           <div class="w-10 h-10 rounded-xl bg-simsy-${glowColor || 'blue'}/10 flex items-center justify-center">
             ${icon}
@@ -20,6 +23,7 @@ const Components = {
         </div>
         <p class="text-2xl font-bold text-simsy-white font-display">${Utils.escapeHtml(value)}</p>
         <p class="text-sm text-simsy-grey mt-1">${Utils.escapeHtml(label)}</p>
+        ${subtitleHtml}
       </div>
     `;
   },

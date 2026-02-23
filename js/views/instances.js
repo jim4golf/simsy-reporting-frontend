@@ -7,12 +7,25 @@
 
   async function render(container) {
     const routerParams = Router.getParams() || {};
-    state = { page: state.page || 1, perPage: 50, filters: state.filters || {}, ...routerParams };
+    // Merge router params — if filters were passed from dashboard navigation, apply them
+    if (routerParams.filters) {
+      state = { page: 1, perPage: 50, filters: { ...routerParams.filters } };
+    } else {
+      state = { page: state.page || 1, perPage: 50, filters: state.filters || {}, ...routerParams };
+    }
+
+    // Build filter banner if navigated from dashboard with final_only
+    const filterBanner = state.filters.final_only ? `
+      <div class="filter-banner">
+        <p>Showing final bundle instances expiring within 30 days</p>
+        <button onclick="InstancesView.clear()" class="btn-secondary text-xs py-1.5 px-3">Clear Filter</button>
+      </div>
+    ` : '';
 
     container.innerHTML = Components.viewHeader({
       title: 'Bundle Report',
       subtitle: 'Monitor bundle lifecycle, depletion and expiry',
-    }) + Filters.renderBar() + `
+    }) + Filters.renderBar() + filterBanner + `
       <!-- Summary Cards -->
       <div id="instance-summary" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         ${Array.from({length: 4}, () => '<div class="glass-card rounded-2xl p-4"><div class="loading-skeleton h-16 w-full"></div></div>').join('')}
@@ -87,6 +100,7 @@
     if (state.filters.iccid) params.iccid = state.filters.iccid;
     if (state.filters.status) params.status = state.filters.status;
     if (state.filters.expiring_before) params.expiring_before = state.filters.expiring_before;
+    if (state.filters.final_only) params.final_only = 'true';
 
     try {
       const data = await API.get('/bundle-instances', params, true);

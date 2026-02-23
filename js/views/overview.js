@@ -91,23 +91,30 @@
 
     try {
       const fp = Filters.getParams();
-      const [usage, bundles, endpoints, expiring] = await Promise.all([
+      const [usage, bundles, endpoints, expiringInstances] = await Promise.all([
         API.get('/usage/summary', { group_by: 'daily', from, to, ...fp }),
         API.get('/bundles', { status: 'Active', per_page: 1, ...fp }),
         API.get('/endpoints', { per_page: 1, ...fp }),
-        API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(30), per_page: 1, ...fp }),
+        API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(30), per_page: 1000, ...fp }),
       ]);
 
       const totalBytes = usage?.summary?.total_bytes || 0;
       const activeBundles = bundles?.pagination?.total || 0;
       const activeEndpoints = endpoints?.pagination?.total || 0;
-      const expiringSoon = expiring?.pagination?.total || 0;
+      const periodLabel = CONFIG.DATE_RANGES[state.dateRange]?.label || 'Selected period';
+
+      // Count final instances expiring (sequence == sequence_max)
+      const allExpiring = expiringInstances?.data || [];
+      const lastInstancesExpiring = allExpiring.filter(inst =>
+        inst.sequence != null && inst.sequence_max != null && inst.sequence === inst.sequence_max
+      ).length;
 
       container.innerHTML = [
         Components.statCard({
           icon: '<svg class="w-5 h-5 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>',
           value: Utils.formatBytes(totalBytes),
           label: 'Total Data Usage',
+          subtitle: periodLabel,
           glowColor: 'blue',
         }),
         Components.statCard({
@@ -123,10 +130,12 @@
           glowColor: 'purple',
         }),
         Components.statCard({
-          icon: '<svg class="w-5 h-5 text-simsy-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
-          value: Utils.formatNumber(expiringSoon),
-          label: 'Expiring in 30 Days',
+          icon: '<svg class="w-5 h-5 text-simsy-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>',
+          value: Utils.formatNumber(lastInstancesExpiring),
+          label: 'Last Instances Expiring',
+          subtitle: 'Within 30 days',
           glowColor: 'orange',
+          onClick: 'OverviewView.showLastExpiring()',
         }),
       ].join('');
     } catch (err) {
@@ -178,7 +187,7 @@
         (data.data || []).forEach(d => {
           const dt = new Date(d.date);
           const key = dt.getFullYear() + '-' + dt.getMonth();
-          dataMap[key] = Number(d.total_bytes) / (1024 * 1024 * 1024);
+          dataMap[key] = Number(d.total_charged || d.total_bytes) / (1024 * 1024 * 1024);
         });
         labels = months.map(m => m.label);
         values = months.map(m => dataMap[m.year + '-' + m.month] || 0);
@@ -188,13 +197,13 @@
         const dataMap = {};
         (data.data || []).forEach(d => {
           const yr = new Date(d.date).getFullYear();
-          dataMap[yr] = Number(d.total_bytes) / (1024 * 1024 * 1024);
+          dataMap[yr] = Number(d.total_charged || d.total_bytes) / (1024 * 1024 * 1024);
         });
         labels = Array.from({ length: 10 }, (_, i) => (startYear + i).toString());
         values = labels.map(yr => dataMap[Number(yr)] || 0);
       } else {
         labels = (data.data || []).map(d => Utils.formatChartDate(d.date));
-        values = (data.data || []).map(d => Number(d.total_bytes) / (1024 * 1024 * 1024));
+        values = (data.data || []).map(d => Number(d.total_charged || d.total_bytes) / (1024 * 1024 * 1024));
       }
 
       // Use bar chart for monthly/annual, line chart for daily
@@ -271,12 +280,19 @@
     if (!panel) return;
 
     try {
-      const data = await API.get('/bundle-instances', { status: 'Active', per_page: 500, ...Filters.getParams() });
-      const instances = data.data || [];
-      const now = Date.now();
+      const fp = Filters.getParams();
+      // Fetch active instances AND recently expired non-final instances (stalled sequences)
+      const [activeData, expiredData] = await Promise.all([
+        API.get('/bundle-instances', { status: 'Active', per_page: 500, ...fp }),
+        API.get('/bundle-instances', { expiring_before: Utils.today(), per_page: 500, ...fp }),
+      ]);
+
+      const activeInstances = activeData.data || [];
+      const expiredInstances = expiredData.data || [];
       const alerts = [];
 
-      instances.forEach(inst => {
+      // Check active instances for depleted, final expiring, nearly depleted, expiring soon
+      activeInstances.forEach(inst => {
         const pctUsed = Utils.percentUsed(inst.data_used_mb, inst.data_allowance_mb);
         const daysLeft = Utils.daysUntil(inst.end_time);
         const isFinal = inst.sequence != null && inst.sequence_max != null && inst.sequence === inst.sequence_max;
@@ -290,6 +306,38 @@
         } else if (daysLeft != null && daysLeft >= 0 && daysLeft < 14) {
           alerts.push({ severity: 'warning', title: 'Bundle Expiring Soon', message: `ICCID ${Utils.truncateIccid(inst.iccid)} — expires in ${daysLeft} days`, details: `${inst.bundle_name} · Ends ${Utils.formatDate(inst.end_time)}` });
         }
+      });
+
+      // Detect stalled sequences: expired instances where sequence != sequence_max
+      // (i.e. mid-sequence instances that expired without the next instance activating)
+      // Build a set of active ICCIDs to avoid false positives
+      const activeIccids = new Set(activeInstances.map(i => (i.iccid || '').trim()));
+      const stalledSeen = new Set();
+
+      expiredInstances.forEach(inst => {
+        if (inst.sequence == null || inst.sequence_max == null) return;
+        if (inst.sequence >= inst.sequence_max) return; // final instance, not stalled
+        const endDate = new Date(inst.end_time);
+        if (isNaN(endDate.getTime())) return;
+        if (endDate > new Date()) return; // not yet expired
+
+        // Check this ICCID doesn't already have a higher-sequence active instance
+        // (approximate: if ICCID has any active instance, skip)
+        const iccid = (inst.iccid || '').trim();
+        if (activeIccids.has(iccid)) return;
+
+        // Deduplicate by ICCID + bundle_moniker
+        const key = iccid + '|' + (inst.bundle_moniker || inst.bundle_name || '');
+        if (stalledSeen.has(key)) return;
+        stalledSeen.add(key);
+
+        const daysSinceExpiry = Math.floor((Date.now() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+        alerts.push({
+          severity: 'critical',
+          title: 'Stalled Sequence',
+          message: `ICCID ${Utils.truncateIccid(iccid)} — Sequence ${inst.sequence}/${inst.sequence_max} expired ${daysSinceExpiry}d ago, next instance not activated`,
+          details: `${inst.bundle_name || 'Unknown'} · Ended ${Utils.formatDate(inst.end_time)}`,
+        });
       });
 
       // Show top 10 alerts
@@ -377,6 +425,15 @@
     changeGroupBy(groupBy) {
       const days = CONFIG.DATE_RANGES[state.dateRange]?.days || 30;
       loadUsageChart(Utils.daysAgo(days), Utils.today(), groupBy);
+    },
+    showLastExpiring() {
+      Router.navigate('instances', {
+        filters: {
+          status: 'Active',
+          expiring_before: Utils.daysFromNow(30),
+          final_only: true,
+        },
+      });
     },
   };
 
