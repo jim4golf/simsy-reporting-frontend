@@ -100,11 +100,14 @@
       const activeBundles = bundles?.pagination?.total || 0;
       const activeEndpoints = endpoints?.pagination?.total || 0;
 
-      // Count final instances expiring (sequence == sequence_max)
+      // Count final instances expiring in the NEXT 30 days (not already expired)
       const allExpiring = expiringInstances?.data || [];
-      const lastInstancesExpiring = allExpiring.filter(inst =>
-        inst.sequence != null && inst.sequence_max != null && inst.sequence === inst.sequence_max
-      ).length;
+      const lastInstancesExpiring = allExpiring.filter(inst => {
+        if (inst.sequence == null || inst.sequence_max == null) return false;
+        if (inst.sequence !== inst.sequence_max) return false;
+        const daysLeft = Utils.daysUntil(inst.end_time);
+        return daysLeft != null && daysLeft >= 0 && daysLeft <= 30;
+      }).length;
 
       // Build date range dropdown options for the Total Data Usage card
       const rangeOptions = Object.entries(CONFIG.DATE_RANGES).map(([key, { label }]) =>

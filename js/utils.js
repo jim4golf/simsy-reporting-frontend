@@ -143,10 +143,15 @@ const Utils = {
     const start = inst.start_time ? new Date(inst.start_time).getTime() : null;
     const end = inst.end_time ? new Date(inst.end_time).getTime() : null;
     const orig = inst.status_name || inst.status_moniker || '';
+    const origLower = orig.toLowerCase();
 
-    // Only LIVE is computed — currently within start/end window
+    // Data depleted overrides everything
+    if (inst.data_allowance_mb && inst.data_used_mb >= inst.data_allowance_mb) return 'Depleted';
+    // Currently within start/end window and has data remaining
     if (start && end && now >= start && now <= end) return 'LIVE';
-    // All other statuses (Active, Depleted, Expired, Suspended, etc.) come from the database
+    // End time has passed but host still says Active — show as Expired
+    if (end && now > end && (origLower === 'active' || origLower === 'enabled')) return 'Expired';
+    // All other statuses come from the database
     return orig || '-';
   },
 
