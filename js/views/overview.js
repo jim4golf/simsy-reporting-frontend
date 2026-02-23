@@ -13,11 +13,9 @@
     container.innerHTML = Components.viewHeader({
       title: 'Dashboard',
       subtitle: 'Overview of your network reporting data',
-      showDateRange: true,
+      showDateRange: false,
       showRefresh: true,
       onRefresh: 'OverviewView.refresh',
-      onDateChange: 'OverviewView.changeDateRange',
-      currentRange: state.dateRange,
     }) + Filters.renderBar() + `
       <!-- KPI Cards -->
       <div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -101,7 +99,6 @@
       const totalBytes = usage?.summary?.total_bytes || 0;
       const activeBundles = bundles?.pagination?.total || 0;
       const activeEndpoints = endpoints?.pagination?.total || 0;
-      const periodLabel = CONFIG.DATE_RANGES[state.dateRange]?.label || 'Selected period';
 
       // Count final instances expiring (sequence == sequence_max)
       const allExpiring = expiringInstances?.data || [];
@@ -109,14 +106,25 @@
         inst.sequence != null && inst.sequence_max != null && inst.sequence === inst.sequence_max
       ).length;
 
+      // Build date range dropdown options for the Total Data Usage card
+      const rangeOptions = Object.entries(CONFIG.DATE_RANGES).map(([key, { label }]) =>
+        `<option value="${key}" ${key === state.dateRange ? 'selected' : ''}>${label}</option>`
+      ).join('');
+
       container.innerHTML = [
-        Components.statCard({
-          icon: '<svg class="w-5 h-5 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>',
-          value: Utils.formatBytes(totalBytes),
-          label: 'Total Data Usage',
-          subtitle: periodLabel,
-          glowColor: 'blue',
-        }),
+        // Custom KPI card with embedded date range selector
+        `<div class="glass-card rounded-2xl p-5 stat-glow-blue transition-all duration-300">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 rounded-xl bg-simsy-blue/10 flex items-center justify-center">
+              <svg class="w-5 h-5 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+            </div>
+          </div>
+          <p class="text-2xl font-bold text-simsy-white font-display">${Utils.escapeHtml(Utils.formatBytes(totalBytes))}</p>
+          <p class="text-sm text-simsy-grey mt-1">Total Data Usage</p>
+          <select onchange="OverviewView.changeDateRange(this.value)" class="mt-2 bg-simsy-surface text-simsy-grey text-xs border border-simsy-grey-dark/40 rounded-lg px-2 py-1 outline-none cursor-pointer">
+            ${rangeOptions}
+          </select>
+        </div>`,
         Components.statCard({
           icon: '<svg class="w-5 h-5 text-simsy-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>',
           value: Utils.formatNumber(activeBundles),
