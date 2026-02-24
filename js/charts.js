@@ -228,6 +228,90 @@ const Charts = {
   },
 
   /**
+   * Create a mixed bar + line chart.
+   * Each dataset can specify type: 'bar' (default) or 'line'.
+   */
+  createMixedChart(canvasId, { labels, datasets, yLabel }) {
+    this.destroy(canvasId);
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+
+    const colorMap = {
+      blue: '#0ea5e9', green: '#10b981', orange: '#f59e0b',
+      purple: '#8b5cf6', cyan: '#22d3ee', red: '#ef4444',
+    };
+
+    const chartDatasets = datasets.map(ds => {
+      const color = colorMap[ds.color] || ds.color || colorMap.blue;
+
+      if (ds.type === 'line') {
+        return {
+          type: 'line',
+          label: ds.label,
+          data: ds.data,
+          borderColor: color,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: ds.dash ? [6, 3] : [],
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: color,
+          pointBorderColor: '#0a0e1a',
+          pointBorderWidth: 2,
+          pointHoverRadius: 5,
+          order: 0, // draw on top of bars
+        };
+      }
+
+      const grad = ctx.createLinearGradient(0, 0, 0, 250);
+      grad.addColorStop(0, color + '80');
+      grad.addColorStop(1, color + '20');
+
+      return {
+        type: 'bar',
+        label: ds.label,
+        data: ds.data,
+        backgroundColor: grad,
+        borderColor: color,
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false,
+        order: 1, // draw behind lines
+      };
+    });
+
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: chartDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, labels: { color: '#94a3b8', usePointStyle: true, padding: 16 } },
+          tooltip: this._tooltip(),
+        },
+        scales: {
+          x: {
+            grid: this._grid(),
+            ticks: { ...this._ticks(), maxRotation: 0 },
+          },
+          y: {
+            grid: this._grid(),
+            ticks: {
+              ...this._ticks(),
+              callback: yLabel ? (v) => v + ' ' + yLabel : undefined,
+            },
+          },
+        },
+      },
+    });
+
+    this.instances[canvasId] = chart;
+    return chart;
+  },
+
+  /**
    * Create a horizontal bar chart.
    */
   createHorizontalBarChart(canvasId, { labels, data, color, xLabel }) {

@@ -138,8 +138,8 @@ const Components = {
     const pct = Utils.percentUsed(usedMB, totalMB);
     let color = 'green';
     if (pct >= 100) color = 'red';
-    else if (pct >= 85) color = 'orange';
-    else if (pct >= 50) color = 'blue';
+    else if (pct >= 90) color = 'orange';
+    else if (pct >= 75) color = 'blue';
 
     return `
       <div class="flex items-center gap-2 min-w-[140px]">

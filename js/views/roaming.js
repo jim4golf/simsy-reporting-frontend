@@ -1,13 +1,14 @@
 /**
  * Roaming Analytics view.
- * Country/operator distribution, home vs roaming, cost premiums.
+ * Country/operator distribution (server-side aggregation),
+ * home vs roaming split, monthly wholesale cost by customer.
  */
 (() => {
   async function render(container) {
     container.innerHTML = Components.viewHeader({
       title: 'Roaming Analytics',
       subtitle: 'Network operator and country distribution analysis',
-    }) + `
+    }) + Filters.renderBar() + `
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
         <div class="glass-card rounded-2xl p-5">
           <h3 class="font-display font-semibold text-simsy-white mb-1">Country Distribution</h3>
@@ -28,10 +29,19 @@
           <div id="roaming-split-legend" class="mt-4 space-y-2"></div>
         </div>
         <div class="xl:col-span-2 glass-card rounded-2xl p-5">
-          <h3 class="font-display font-semibold text-simsy-white mb-1">Cost by Country</h3>
-          <p class="text-xs text-simsy-grey mb-4">Average cost analysis per country</p>
+          <h3 class="font-display font-semibold text-simsy-white mb-1">Wholesale Network Cost</h3>
+          <p class="text-xs text-simsy-grey mb-4">Buy-side cost per country (what S-IMSY pays network operators)</p>
           <div id="roaming-cost-table">${Components.loading('Analysing costs...')}</div>
         </div>
+      </div>
+      <div class="glass-card rounded-2xl p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-display font-semibold text-simsy-white">Monthly Wholesale Cost by Customer</h3>
+            <p class="text-xs text-simsy-grey mt-0.5">Aggregated buy-side costs — compare against bundle revenue for profitability</p>
+          </div>
+        </div>
+        <div id="cost-by-customer">${Components.loading('Loading cost data...')}</div>
       </div>
     `;
 
@@ -40,103 +50,106 @@
 
   async function loadData() {
     try {
-      // Fetch a large sample of recent usage records
-      const data = await API.get('/usage/records', { per_page: 1000, from: Utils.daysAgo(30) });
-      const records = data.data || [];
+      const fp = Filters.getParams();
 
-      if (records.length === 0) {
+      // Fetch roaming aggregation and cost data in parallel (server-side)
+      const [roaming, costs] = await Promise.all([
+        API.get('/usage/roaming', { limit: 10, ...fp }),
+        API.get('/usage/costs', { months: 6, ...fp }),
+      ]);
+
+      // ── Aggregate countries by normalised name (e.g. merge UK variants) ──
+      const rawCountries = roaming.countries || [];
+      const countryMap = {};
+      rawCountries.forEach(c => {
+        const name = Utils.tadigToCountry(c.country);
+        if (!countryMap[name]) {
+          countryMap[name] = { name, total_bytes: 0, total_buy: 0, record_count: 0 };
+        }
+        countryMap[name].total_bytes += c.total_bytes;
+        countryMap[name].total_buy += c.total_buy;
+        countryMap[name].record_count += c.record_count;
+      });
+      const countries = Object.values(countryMap).sort((a, b) => b.total_bytes - a.total_bytes);
+
+      // ── Country Distribution Chart ──
+      if (countries.length === 0) {
         document.querySelectorAll('#view-container .glass-card').forEach(el => {
-          el.innerHTML = Components.emptyState('No usage data available');
+          if (!el.querySelector('#cost-by-customer')) {
+            el.innerHTML = Components.emptyState('No usage data available');
+          }
         });
-        return;
+      } else {
+        Charts.createHorizontalBarChart('roaming-country-chart', {
+          labels: countries.map(c => c.name),
+          data: countries.map(c => Math.round(c.total_bytes / (1024 * 1024))),
+          color: 'cyan',
+          xLabel: 'MB',
+        });
       }
 
-      // Aggregate by country
-      const byCountry = {};
-      const byOperator = {};
-      records.forEach(r => {
-        const country = Utils.tadigToCountry(r.serving_country_name);
-        const operator = r.serving_operator_name || 'Unknown';
-        const bytes = Number(r.uplink_bytes || 0) + Number(r.downlink_bytes || 0);
-        const cost = Number(r.buy_charge || 0);
+      // ── Operator Distribution Chart ──
+      const operators = roaming.operators || [];
+      if (operators.length > 0) {
+        Charts.createHorizontalBarChart('roaming-operator-chart', {
+          labels: operators.map(o => o.operator),
+          data: operators.map(o => Math.round(o.total_bytes / (1024 * 1024))),
+          color: 'purple',
+          xLabel: 'MB',
+        });
+      }
 
-        if (!byCountry[country]) byCountry[country] = { bytes: 0, cost: 0, count: 0 };
-        byCountry[country].bytes += bytes;
-        byCountry[country].cost += cost;
-        byCountry[country].count++;
-
-        if (!byOperator[operator]) byOperator[operator] = { bytes: 0, count: 0 };
-        byOperator[operator].bytes += bytes;
-        byOperator[operator].count++;
-      });
-
-      // Sort and take top 10
-      const topCountries = Object.entries(byCountry).sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 10);
-      const topOperators = Object.entries(byOperator).sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 10);
-
-      // Country bar chart
-      Charts.createHorizontalBarChart('roaming-country-chart', {
-        labels: topCountries.map(c => c[0]),
-        data: topCountries.map(c => Math.round(c[1].bytes / (1024 * 1024))),
-        color: 'cyan',
-        xLabel: 'MB',
-      });
-
-      // Operator bar chart
-      Charts.createHorizontalBarChart('roaming-operator-chart', {
-        labels: topOperators.map(o => o[0]),
-        data: topOperators.map(o => Math.round(o[1].bytes / (1024 * 1024))),
-        color: 'purple',
-        xLabel: 'MB',
-      });
-
-      // Home vs Roaming
-      const homeCountry = topCountries[0]?.[0] || 'Unknown';
-      const homeBytes = byCountry[homeCountry]?.bytes || 0;
-      const totalBytes = Object.values(byCountry).reduce((s, c) => s + c.bytes, 0);
+      // ── Home vs Roaming Split ──
+      const totalBytes = roaming.totals?.total_bytes || 0;
+      const homeCountry = countries.length > 0 ? countries[0].name : 'Unknown';
+      const homeBytes = countries.length > 0 ? countries[0].total_bytes : 0;
       const roamingBytes = totalBytes - homeBytes;
 
-      Charts.createDoughnutChart('roaming-split-chart', {
-        labels: ['Home (' + homeCountry + ')', 'Roaming'],
-        data: [homeBytes, roamingBytes],
-        colors: ['#10b981', '#f59e0b'],
-      });
+      if (totalBytes > 0) {
+        Charts.createDoughnutChart('roaming-split-chart', {
+          labels: ['Home (' + homeCountry + ')', 'Roaming'],
+          data: [homeBytes, roamingBytes],
+          colors: ['#10b981', '#f59e0b'],
+        });
 
-      const legend = document.getElementById('roaming-split-legend');
-      if (legend) {
-        legend.innerHTML = `
-          <div class="flex items-center justify-between text-sm">
-            <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-simsy-green"></div><span class="text-simsy-grey">Home (${Utils.escapeHtml(homeCountry)})</span></div>
-            <span class="text-simsy-white font-medium">${Utils.formatBytes(homeBytes)}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-simsy-orange"></div><span class="text-simsy-grey">Roaming</span></div>
-            <span class="text-simsy-white font-medium">${Utils.formatBytes(roamingBytes)}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm pt-1 border-t border-simsy-grey-dark/20">
-            <span class="text-simsy-grey">Roaming %</span>
-            <span class="text-simsy-white font-medium">${totalBytes > 0 ? ((roamingBytes / totalBytes) * 100).toFixed(1) : 0}%</span>
-          </div>
-        `;
+        const legend = document.getElementById('roaming-split-legend');
+        if (legend) {
+          legend.innerHTML = `
+            <div class="flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-simsy-green"></div><span class="text-simsy-grey">Home (${Utils.escapeHtml(homeCountry)})</span></div>
+              <span class="text-simsy-white font-medium">${Utils.formatBytes(homeBytes)}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-simsy-orange"></div><span class="text-simsy-grey">Roaming</span></div>
+              <span class="text-simsy-white font-medium">${Utils.formatBytes(roamingBytes)}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm pt-1 border-t border-simsy-grey-dark/20">
+              <span class="text-simsy-grey">Roaming %</span>
+              <span class="text-simsy-white font-medium">${totalBytes > 0 ? ((roamingBytes / totalBytes) * 100).toFixed(1) : 0}%</span>
+            </div>
+          `;
+        }
       }
 
-      // Cost by country table
+      // ── Wholesale Cost by Country Table ──
       const costTable = document.getElementById('roaming-cost-table');
-      if (costTable) {
-        const homeCostPerMB = byCountry[homeCountry]?.bytes > 0 ? (byCountry[homeCountry].cost / (byCountry[homeCountry].bytes / (1024 * 1024))) : 0;
-        const countryRows = topCountries.map(([name, data]) => {
-          const mb = data.bytes / (1024 * 1024);
-          const costPerMB = mb > 0 ? data.cost / mb : 0;
+      if (costTable && countries.length > 0) {
+        const homeCostPerMB = countries[0].total_bytes > 0
+          ? (countries[0].total_buy / (countries[0].total_bytes / (1024 * 1024)))
+          : 0;
+
+        const countryRows = countries.map(c => {
+          const mb = c.total_bytes / (1024 * 1024);
+          const costPerMB = mb > 0 ? c.total_buy / mb : 0;
           const premium = homeCostPerMB > 0 ? ((costPerMB / homeCostPerMB - 1) * 100).toFixed(0) : '-';
-          return { name, bytes: data.bytes, cost: data.cost, costPerMB, premium, isHome: name === homeCountry };
+          return { name: c.name, bytes: c.total_bytes, cost: c.total_buy, premium, isHome: c.name === homeCountry };
         });
 
         costTable.innerHTML = Components.table({
           columns: [
             { label: 'Country', render: r => `${Utils.escapeHtml(r.name)} ${r.isHome ? '<span class="badge badge-green ml-1">Home</span>' : ''}` },
             { label: 'Data', render: r => Utils.formatBytes(r.bytes) },
-            { label: 'Total Cost', render: r => Utils.formatCurrency(r.cost) },
-            { label: 'Cost/MB', render: r => Utils.formatCurrency(r.costPerMB) },
+            { label: 'Wholesale Cost', render: r => Utils.formatCurrency(r.cost) },
             { label: 'Premium', render: r => {
               if (r.isHome) return Components.badge('Baseline', 'green');
               const p = Number(r.premium);
@@ -148,11 +161,93 @@
           ],
           rows: countryRows,
         });
+      } else if (costTable) {
+        costTable.innerHTML = Components.emptyState('No cost data available');
+      }
+
+      // ── Monthly Wholesale Cost by Customer ──
+      const costContainer = document.getElementById('cost-by-customer');
+      if (costContainer) {
+        const monthlyTotals = costs.monthly_totals || [];
+        const byCustomer = costs.by_customer || [];
+
+        if (monthlyTotals.length === 0) {
+          costContainer.innerHTML = Components.emptyState('No cost data available');
+        } else {
+          // Build monthly totals table
+          const monthRows = monthlyTotals.map(m => {
+            const dt = new Date(m.month + 'T00:00:00');
+            const label = dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+            // Get customer breakdown for this month
+            const monthCustomers = byCustomer
+              .filter(c => c.month === m.month)
+              .sort((a, b) => b.wholesale_cost - a.wholesale_cost);
+
+            return { month: label, monthKey: m.month, cost: m.wholesale_cost, bytes: m.total_bytes, records: m.record_count, customers: monthCustomers };
+          });
+
+          let html = '<div class="space-y-4">';
+
+          monthRows.forEach(m => {
+            html += `
+              <div class="border border-simsy-grey-dark/20 rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-simsy-surface/50 cursor-pointer" onclick="RoamingView.toggleMonth(this)">
+                  <div class="flex items-center gap-3">
+                    <svg class="w-4 h-4 text-simsy-grey transition-transform month-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    <span class="font-display font-semibold text-simsy-white">${Utils.escapeHtml(m.month)}</span>
+                  </div>
+                  <div class="flex items-center gap-6 text-sm">
+                    <span class="text-simsy-grey">${Utils.formatBytes(m.bytes)}</span>
+                    <span class="text-simsy-white font-medium">${Utils.formatCurrency(m.cost)}</span>
+                  </div>
+                </div>
+                <div class="month-detail hidden px-4 pb-3">`;
+
+            if (m.customers.length > 0) {
+              html += Components.table({
+                columns: [
+                  { label: 'Customer', render: r => Utils.escapeHtml(r.customer) },
+                  { label: 'Data', render: r => Utils.formatBytes(r.total_bytes) },
+                  { label: 'Wholesale Cost', render: r => Utils.formatCurrency(r.wholesale_cost) },
+                  { label: 'Records', render: r => Utils.formatNumber(r.record_count) },
+                  { label: 'Cost/MB', render: r => {
+                    const mb = r.total_bytes / (1024 * 1024);
+                    return mb > 0 ? Utils.formatCurrency(r.wholesale_cost / mb) : '-';
+                  }},
+                ],
+                rows: m.customers,
+              });
+            } else {
+              html += '<p class="text-sm text-simsy-grey py-2">No customer breakdown available</p>';
+            }
+
+            html += '</div></div>';
+          });
+
+          html += '</div>';
+          costContainer.innerHTML = html;
+        }
       }
     } catch (err) {
       console.error('Roaming data error:', err);
     }
   }
+
+  // Public API
+  window.RoamingView = {
+    refresh() {
+      const container = document.getElementById('view-container');
+      if (container) render(container);
+    },
+    toggleMonth(el) {
+      const detail = el.parentElement.querySelector('.month-detail');
+      const chevron = el.querySelector('.month-chevron');
+      if (detail) {
+        detail.classList.toggle('hidden');
+        if (chevron) chevron.style.transform = detail.classList.contains('hidden') ? '' : 'rotate(90deg)';
+      }
+    },
+  };
 
   Router.register('roaming', render);
 })();

@@ -27,13 +27,13 @@
       subtitle: 'Monitor bundle lifecycle, depletion and expiry',
     }) + Filters.renderBar() + filterBanner + `
       <!-- Summary Cards -->
-      <div id="instance-summary" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        ${Array.from({length: 4}, () => '<div class="glass-card rounded-2xl p-4"><div class="loading-skeleton h-16 w-full"></div></div>').join('')}
+      <div id="instance-summary" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+        ${Array.from({length: 5}, () => '<div class="glass-card rounded-2xl p-4"><div class="loading-skeleton h-16 w-full"></div></div>').join('')}
       </div>
 
       <!-- Status Tabs -->
       <div class="tab-group mb-4">
-        ${['', 'Live', 'Active', 'Depleted', 'Terminated'].map(function(s) {
+        ${['', 'Active', 'Live', 'Depleted', 'Terminated', 'Stalled'].map(function(s) {
           var label = s || 'All';
           var cls = (state.filters.status || '') === s ? 'active' : '';
           return '<button class="tab-btn ' + cls + '" onclick="InstancesView.filterStatus(\'' + s + '\')">' + label + '</button>';
@@ -65,25 +65,20 @@
 
     try {
       const fp = Filters.getParams();
-      const [active, expiring7d, allActive] = await Promise.all([
+      const [all, active, live, depletedResult, terminatedResult] = await Promise.all([
+        API.get('/bundle-instances', { per_page: 1, ...fp }),
         API.get('/bundle-instances', { status: 'Active', per_page: 1, ...fp }),
-        API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(7), per_page: 1, ...fp }),
-        API.get('/bundle-instances', { status: 'Active', per_page: 1000, ...fp }),
+        API.get('/bundle-instances', { status: 'Live', per_page: 1, ...fp }),
+        API.get('/bundle-instances', { status: 'Depleted', per_page: 1, ...fp }),
+        API.get('/bundle-instances', { status: 'Terminated', per_page: 1, ...fp }),
       ]);
 
-      const instances = allActive.data || [];
-      let depleted = 0, finalExpiring = 0;
-      instances.forEach(inst => {
-        if (Utils.percentUsed(inst.data_used_mb, inst.data_allowance_mb) >= 100) depleted++;
-        const dl = Utils.daysUntil(inst.end_time);
-        if (inst.sequence === inst.sequence_max && dl != null && dl >= 0 && dl <= 30) finalExpiring++;
-      });
-
       container.innerHTML = [
-        Components.statCard({ icon: '<svg class="w-5 h-5 text-simsy-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>', value: Utils.formatNumber(active?.pagination?.total || 0), label: 'Active Instances', glowColor: 'blue' }),
-        Components.statCard({ icon: '<svg class="w-5 h-5 text-simsy-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', value: Utils.formatNumber(expiring7d?.pagination?.total || 0), label: 'Expiring in 7 Days', glowColor: 'orange' }),
-        Components.statCard({ icon: '<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>', value: Utils.formatNumber(depleted), label: 'Depleted', glowColor: 'red' }),
-        Components.statCard({ icon: '<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>', value: Utils.formatNumber(finalExpiring), label: 'Final Bundles Expiring', glowColor: 'red' }),
+        Components.statCard({ icon: '<svg class="w-5 h-5 text-simsy-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>', value: Utils.formatNumber(all?.pagination?.total || 0), label: 'Total Instances', glowColor: 'blue', onClick: "InstancesView.filterStatus('')" }),
+        Components.statCard({ icon: '<svg class="w-5 h-5 text-simsy-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', value: Utils.formatNumber(active?.pagination?.total || 0), label: 'Active', glowColor: 'green', onClick: "InstancesView.filterStatus('Active')" }),
+        Components.statCard({ icon: '<svg class="w-5 h-5 text-simsy-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>', value: Utils.formatNumber(live?.pagination?.total || 0), label: 'Live', glowColor: 'cyan', onClick: "InstancesView.filterStatus('Live')" }),
+        Components.statCard({ icon: '<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>', value: Utils.formatNumber(depletedResult?.pagination?.total || 0), label: 'Depleted', glowColor: 'red', onClick: "InstancesView.filterStatus('Depleted')" }),
+        Components.statCard({ icon: '<svg class="w-5 h-5 text-simsy-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>', value: Utils.formatNumber(terminatedResult?.pagination?.total || 0), label: 'Terminated', glowColor: 'orange', onClick: "InstancesView.filterStatus('Terminated')" }),
       ].join('');
     } catch (err) {
       container.innerHTML = Components.errorState('Failed to load summary: ' + err.message);

@@ -41,7 +41,7 @@
         <div class="glass-card rounded-2xl p-5">
           <div class="mb-4">
             <h3 class="font-display font-semibold text-simsy-white">Bundle Health</h3>
-            <p class="text-xs text-simsy-grey mt-0.5">Active instance data consumption</p>
+            <p class="text-xs text-simsy-grey mt-0.5">All bundle instances by status and data usage</p>
           </div>
           <div class="h-48 flex items-center justify-center"><canvas id="overview-bundle-chart"></canvas></div>
           <div id="bundle-legend" class="mt-4 space-y-2"></div>
@@ -56,12 +56,13 @@
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="font-display font-semibold text-simsy-white">Top Endpoints by Usage</h3>
-            <p class="text-xs text-simsy-grey mt-0.5">28-day rolling period</p>
+            <p class="text-xs text-simsy-grey mt-0.5">Monthly data consumption over active period</p>
           </div>
           <a href="#endpoints" class="text-xs text-simsy-blue hover:text-simsy-cyan transition-colors">View All &rarr;</a>
         </div>
-        <div id="top-endpoints" class="space-y-3">
-          ${Array.from({length: 5}, () => '<div class="loading-skeleton h-10 w-full mb-2"></div>').join('')}
+        <div id="top-endpoints">
+          <div class="h-72"><canvas id="top-endpoints-chart"></canvas></div>
+          <div id="top-endpoints-legend" class="mt-3 space-y-1"></div>
         </div>
       </div>
 
@@ -96,7 +97,8 @@
         API.get('/bundle-instances', { status: 'Active', expiring_before: Utils.daysFromNow(30), per_page: 1000, ...fp }),
       ]);
 
-      const totalBytes = usage?.summary?.total_bytes || 0;
+      // Use charged consumption (billable figure) — falls back to total_bytes if not available
+      const totalBytes = usage?.summary?.total_charged || usage?.summary?.total_bytes || 0;
       const activeBundles = bundles?.pagination?.total || 0;
       const activeEndpoints = endpoints?.pagination?.total || 0;
 
@@ -250,37 +252,66 @@
 
   async function loadBundleHealth() {
     try {
-      const instances = await API.getAll('/bundle-instances', { status: 'Active', ...Filters.getParams() });
+      const fp = Filters.getParams();
+      // Fetch ALL instances (no status filter) so the total matches the Bundle Report
+      const allInstances = await API.getAll('/bundle-instances', fp);
 
-      let healthy = 0, low = 0, critical = 0, depleted = 0;
-      instances.forEach(inst => {
-        const pct = Utils.percentUsed(inst.data_used_mb, inst.data_allowance_mb);
-        if (pct >= 100) depleted++;
-        else if (pct >= 90) critical++;
-        else if (pct >= 50) low++;
-        else healthy++;
+      let healthy = 0, moderate = 0, critical = 0, depleted = 0, terminated = 0;
+
+      allInstances.forEach(inst => {
+        const status = (inst.status_name || '').toLowerCase();
+
+        if (status === 'terminated') {
+          terminated++;
+        } else if (status === 'depleted') {
+          depleted++;
+        } else {
+          // Active/Enabled or any other host status — categorise by data usage health
+          const allowance = inst.data_allowance_mb || Utils.parseAllowanceFromName(inst.bundle_name);
+          const used = inst.data_used_mb || 0;
+          const pct = allowance > 0 ? (used / allowance) * 100 : 0;
+
+          if (allowance > 0 && pct >= 90) {
+            critical++;
+          } else if (allowance > 0 && pct >= 75) {
+            moderate++;
+          } else {
+            healthy++;
+          }
+        }
       });
 
+      const total = healthy + moderate + critical + depleted + terminated;
+
+      // Only include non-zero segments in the chart
+      const segments = [
+        { label: 'Healthy', count: healthy, color: '#10b981', css: 'bg-simsy-green', filter: 'healthy' },
+        { label: 'Moderate (75-90%)', count: moderate, color: '#0ea5e9', css: 'bg-simsy-blue', filter: 'moderate' },
+        { label: 'Critical (>90%)', count: critical, color: '#f59e0b', css: 'bg-simsy-orange', filter: 'critical' },
+        { label: 'Depleted', count: depleted, color: '#ef4444', css: 'bg-red-500', filter: 'depleted' },
+        { label: 'Terminated', count: terminated, color: '#374151', css: 'bg-gray-700', filter: 'terminated' },
+      ];
+      const visible = segments.filter(s => s.count > 0);
+
       Charts.createDoughnutChart('overview-bundle-chart', {
-        labels: ['Healthy', 'Moderate', 'Critical', 'Depleted'],
-        data: [healthy, low, critical, depleted],
-        colors: ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444'],
+        labels: visible.map(s => s.label.split(' ')[0]),
+        data: visible.map(s => s.count),
+        colors: visible.map(s => s.color),
       });
 
       const legend = document.getElementById('bundle-legend');
       if (legend) {
-        const items = [
-          { color: 'bg-simsy-green', label: 'Healthy (<50% used)', count: healthy },
-          { color: 'bg-simsy-blue', label: 'Moderate (50-90%)', count: low },
-          { color: 'bg-simsy-orange', label: 'Critical (>90%)', count: critical },
-          { color: 'bg-red-500', label: 'Depleted (100%)', count: depleted },
-        ];
-        legend.innerHTML = items.map(i => `
-          <div class="flex items-center justify-between text-sm">
-            <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full ${i.color}"></div><span class="text-simsy-grey">${i.label}</span></div>
-            <span class="text-simsy-white font-medium">${i.count}</span>
+        legend.innerHTML = visible.map(s => `
+          <div class="flex items-center justify-between text-sm cursor-pointer hover:bg-simsy-surface/30 rounded px-1 -mx-1" onclick="OverviewView.showByHealth('${s.filter}')">
+            <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full ${s.css}"></div><span class="text-simsy-grey">${s.label}</span></div>
+            <span class="text-simsy-white font-medium">${s.count}</span>
           </div>
-        `).join('');
+        `).join('') + `
+          <div class="flex items-center justify-between text-sm pt-1 border-t border-simsy-grey-dark/20 mt-1">
+            <span class="text-simsy-grey">Total Instances</span>
+            <span class="text-simsy-white font-medium">${total}</span>
+          </div>
+        `;
       }
     } catch (err) {
       console.error('Bundle health load error:', err);
@@ -377,45 +408,63 @@
     if (!container) return;
 
     try {
-      const data = await API.get('/endpoints', { per_page: 20, ...Filters.getParams() });
-      const endpoints = (data.data || [])
-        .sort((a, b) => (Number(b.usage_rolling_28d) || 0) - (Number(a.usage_rolling_28d) || 0))
-        .slice(0, 5);
+      const data = await API.get('/endpoints/top', { limit: 5, ...Filters.getParams() });
+      const endpoints = data.endpoints || [];
 
       if (endpoints.length === 0) {
-        container.innerHTML = Components.emptyState('No endpoints found');
+        container.innerHTML = Components.emptyState('No endpoint usage data found');
         return;
       }
 
-      const maxUsage = Number(endpoints[0]?.usage_rolling_28d) || 1;
-      const colors = ['blue', 'cyan', 'green', 'purple', 'orange'];
+      // Collect all unique months across all endpoints and sort chronologically
+      const allMonths = new Set();
+      endpoints.forEach(ep => {
+        Object.keys(ep.monthly).forEach(m => allMonths.add(m));
+      });
+      const sortedMonths = [...allMonths].sort();
 
-      container.innerHTML = endpoints.map((ep, i) => {
-        const usage = Number(ep.usage_rolling_28d) || 0;
-        const pct = (usage / maxUsage) * 100;
-        const color = colors[i] || 'blue';
-        const gradients = {
-          blue: 'from-simsy-blue to-simsy-cyan',
-          cyan: 'from-simsy-cyan to-simsy-green',
-          green: 'from-simsy-green to-simsy-green',
-          purple: 'from-simsy-purple to-simsy-purple',
-          orange: 'from-simsy-orange to-simsy-orange',
-        };
-        return `
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-simsy-${color}/10 flex items-center justify-center text-xs font-bold text-simsy-${color}">${i + 1}</div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-sm text-simsy-white truncate">${Utils.escapeHtml(ep.endpoint_name || ep.endpoint_identifier || 'Unknown')}</span>
-                <span class="text-sm font-medium text-simsy-white ml-2">${Utils.formatBytes(usage)}</span>
+      // Format month labels as "Mon YY" (e.g. "Jan 25")
+      const labels = sortedMonths.map(m => {
+        const d = new Date(m + 'T00:00:00');
+        return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+      });
+
+      // Build datasets — one line per endpoint, using the same colour palette
+      const colors = ['blue', 'cyan', 'green', 'purple', 'orange'];
+      const datasets = endpoints.map((ep, i) => ({
+        label: ep.endpoint_name || 'Unknown',
+        data: sortedMonths.map(m => {
+          const bytes = ep.monthly[m] || 0;
+          return Math.round(bytes / (1024 * 1024)); // Convert to MB
+        }),
+        color: colors[i] || 'blue',
+        fill: false,
+      }));
+
+      Charts.createLineChart('top-endpoints-chart', {
+        labels,
+        datasets,
+        yLabel: 'MB',
+      });
+
+      // Legend with avg monthly usage
+      const colorHex = { blue: '#0ea5e9', cyan: '#22d3ee', green: '#10b981', purple: '#8b5cf6', orange: '#f59e0b' };
+      const legend = document.getElementById('top-endpoints-legend');
+      if (legend) {
+        legend.innerHTML = endpoints.map((ep, i) => {
+          const c = colors[i] || 'blue';
+          const avg = ep.avg_monthly_bytes || 0;
+          return `
+            <div class="flex items-center justify-between text-sm">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${colorHex[c]}"></div>
+                <span class="text-simsy-grey truncate">${Utils.escapeHtml(ep.endpoint_name || 'Unknown')}</span>
               </div>
-              <div class="w-full bg-simsy-dark/50 rounded-full h-1.5">
-                <div class="bg-gradient-to-r ${gradients[color]} h-1.5 rounded-full" style="width: ${pct}%"></div>
-              </div>
+              <span class="text-simsy-white font-medium ml-2 whitespace-nowrap">${Utils.formatBytes(avg)}/mo avg</span>
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
+      }
     } catch (err) {
       container.innerHTML = Components.errorState('Failed to load endpoints: ' + err.message);
     }
@@ -443,6 +492,14 @@
           final_only: true,
         },
       });
+    },
+    showByHealth(category) {
+      // Navigate to instances view filtered by the relevant status
+      const statusMap = {
+        healthy: 'Active', moderate: 'Active', critical: 'Active',
+        depleted: 'Depleted', terminated: 'Terminated',
+      };
+      Router.navigate('instances', { filters: { status: statusMap[category] || '' } });
     },
   };
 

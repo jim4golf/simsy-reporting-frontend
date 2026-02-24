@@ -79,6 +79,8 @@ const Utils = {
     if (amount == null || isNaN(amount)) return '-';
     const n = Number(amount);
     const sym = currency === 'EUR' ? '\u20AC' : currency === 'USD' ? '$' : '\u00A3';
+    // Use more decimal places for small amounts so they don't show as 0.00
+    if (n !== 0 && Math.abs(n) < 0.01) return sym + n.toFixed(4);
     return sym + n.toFixed(2);
   },
 
@@ -110,6 +112,18 @@ const Utils = {
   },
 
   /**
+   * Parse data allowance (in MB) from a bundle name.
+   * Looks for patterns like "1GB", "2GB", "3GB", "5GB", "10GB" in the name.
+   * Returns allowance in MB, or 0 if not found.
+   */
+  parseAllowanceFromName(name) {
+    if (!name) return 0;
+    const match = name.match(/(\d+)\s*GB/i);
+    if (match) return parseInt(match[1], 10) * 1024;
+    return 0;
+  },
+
+  /**
    * Get a date N days ago as ISO string (date only).
    */
   daysAgo(n) {
@@ -135,24 +149,22 @@ const Utils = {
   },
 
   /**
-   * Compute a display status for a bundle instance based on lifecycle.
-   * Depleted > LIVE > Terminated > original status
+   * Compute a display status for a bundle instance.
+   * Uses the host system status_name directly. If null/empty, falls back:
+   *   - Depleted: data_used_mb >= data_allowance_mb
+   *   - Terminated: end_time has passed (time expired, data not fully used)
+   *   - Active: otherwise
    */
   computeInstanceStatus(inst) {
-    const now = Date.now();
-    const start = inst.start_time ? new Date(inst.start_time).getTime() : null;
-    const end = inst.end_time ? new Date(inst.end_time).getTime() : null;
-    const orig = inst.status_name || inst.status_moniker || '';
-    const origLower = orig.toLowerCase();
+    const hostStatus = inst.status_name || inst.status_moniker || '';
+    if (hostStatus) return hostStatus;
 
-    // Data depleted overrides everything
-    if (inst.data_allowance_mb && inst.data_used_mb >= inst.data_allowance_mb) return 'Depleted';
-    // Currently within start/end window and has data remaining
-    if (start && end && now >= start && now <= end) return 'LIVE';
-    // End time has passed but host still says Active — show as Expired
-    if (end && now > end && (origLower === 'active' || origLower === 'enabled')) return 'Expired';
-    // All other statuses come from the database
-    return orig || '-';
+    // Fallback when host status is missing
+    const allowance = inst.data_allowance_mb || this.parseAllowanceFromName(inst.bundle_name);
+    if (allowance > 0 && inst.data_used_mb >= allowance) return 'Depleted';
+    const daysLeft = this.daysUntil(inst.end_time);
+    if (daysLeft != null && daysLeft < 0) return 'Terminated';
+    return 'Active';
   },
 
   /**
