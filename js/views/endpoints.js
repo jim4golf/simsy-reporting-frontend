@@ -91,7 +91,7 @@
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
                 ${Components.healthDot(health)}
-                <span class="text-sm font-medium text-simsy-white truncate">${Utils.escapeHtml(ep.endpoint_name || ep.endpoint_identifier || 'Unknown')}</span>
+                <span class="text-sm font-medium text-simsy-white truncate">${Utils.escapeHtml(ep.iccid || ep.endpoint_name || 'Unknown')}</span>
               </div>
               ${Components.statusBadge(ep.endpoint_status_name || ep.status || ep.network_status_name || (Number(ep.usage_rolling_28d) > 0 ? 'Active' : null))}
             </div>
@@ -150,7 +150,7 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
               Back to Endpoints
             </button>
-            <h1 class="font-display text-2xl font-bold text-simsy-white">${Utils.escapeHtml(data.endpoint || id)}</h1>
+            <h1 class="font-display text-2xl font-bold text-simsy-white">${Utils.escapeHtml(data.iccid || data.endpoint || id)}</h1>
             <p class="text-simsy-grey text-sm mt-1">90-day usage history</p>
           </div>
           <div class="glass-card rounded-2xl p-5">

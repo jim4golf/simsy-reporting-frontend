@@ -171,6 +171,33 @@ tailwind.config = {
         document.getElementById('admin-link')?.classList.remove('hidden');
       }
 
+      // Customer role: restrict sidebar to selected views only
+      if (Auth.getRole() === 'customer') {
+        const allowedViews = ['overview', 'usage', 'instances', 'endpoints', 'roaming', 'cost'];
+        document.querySelectorAll('[data-view]').forEach(link => {
+          if (!allowedViews.includes(link.getAttribute('data-view'))) {
+            link.style.display = 'none';
+          }
+        });
+        // Hide section headers that have no visible children beneath them
+        document.querySelectorAll('#sidebar nav > div.px-3').forEach(header => {
+          let sibling = header.nextElementSibling;
+          let hasVisible = false;
+          while (sibling && !sibling.classList.contains('uppercase')) {
+            if (sibling.style.display !== 'none' && sibling.hasAttribute('data-view')) {
+              hasVisible = true;
+              break;
+            }
+            sibling = sibling.nextElementSibling;
+          }
+          if (!hasVisible) header.style.display = 'none';
+        });
+        // Also hide Settings section links (API docs, export, admin)
+        document.querySelectorAll('#sidebar nav a:not([data-view])').forEach(link => {
+          link.style.display = 'none';
+        });
+      }
+
       // Sidebar toggle for mobile
       document.getElementById('sidebar-toggle').addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');

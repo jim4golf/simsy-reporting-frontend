@@ -11,18 +11,24 @@
   let revFilterCustomer = '';
   let revCustomersList = [];
 
+  const isCustomer = Auth.getRole() === 'customer';
+
   async function render(container) {
+    const sectionTitle = isCustomer ? 'Bundle Pricing &amp; Cost' : 'Bundle Pricing &amp; Revenue';
+    const sectionSubtitle = isCustomer ? 'Your bundle costs' : 'Set monthly bundle prices and analyse revenue';
+    const analysisTitle = isCustomer ? 'Cost Summary' : 'Revenue Analysis';
+
     container.innerHTML = Components.viewHeader({
-      title: 'Cost Analysis',
-      subtitle: 'Revenue, margin and per-device cost insights',
+      title: isCustomer ? 'Cost Analysis' : 'Cost Analysis',
+      subtitle: isCustomer ? 'Bundle cost insights' : 'Revenue, margin and per-device cost insights',
     }) + `
-      <!-- KPI Cards -->
-      <div id="cost-kpis" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <!-- KPI Cards (hidden for customers) -->
+      <div id="cost-kpis" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6"${isCustomer ? ' style="display:none"' : ''}>
         ${Array.from({length: 4}, () => '<div class="glass-card rounded-2xl p-5"><div class="loading-skeleton h-20 w-full"></div></div>').join('')}
       </div>
 
-      <!-- Charts -->
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+      <!-- Charts (hidden for customers) -->
+      <div id="cost-charts" class="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6"${isCustomer ? ' style="display:none"' : ''}>
         <div class="glass-card rounded-2xl p-5">
           <h3 class="font-display font-semibold text-simsy-white mb-1">Buy vs Sell Over Time</h3>
           <p class="text-xs text-simsy-grey mb-4">Last 30 days daily</p>
@@ -35,11 +41,11 @@
       </div>
 
       <!-- Bundle Pricing & Revenue Section -->
-      <div class="mt-8" id="pricing-revenue-section">
+      <div class="${isCustomer ? '' : 'mt-8'}" id="pricing-revenue-section">
         <div class="flex items-center justify-between mb-4">
           <div>
-            <h2 class="font-display text-xl font-bold text-simsy-white">Bundle Pricing &amp; Revenue</h2>
-            <p class="text-sm text-simsy-grey mt-1">Set monthly bundle prices and analyse revenue</p>
+            <h2 class="font-display text-xl font-bold text-simsy-white">${sectionTitle}</h2>
+            <p class="text-sm text-simsy-grey mt-1">${sectionSubtitle}</p>
           </div>
         </div>
 
@@ -57,12 +63,12 @@
           <div id="pricing-grid">${Components.loading('Loading pricing...')}</div>
         </div>
 
-        <!-- Revenue Analysis -->
+        <!-- Revenue / Cost Analysis -->
         <div class="glass-card rounded-2xl p-5">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-display font-semibold text-simsy-white">Revenue Analysis</h3>
+            <h3 class="font-display font-semibold text-simsy-white">${analysisTitle}</h3>
           </div>
-          <div id="revenue-filters" class="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-xl bg-simsy-surface/50 border border-simsy-grey-dark/30">
+          <div id="revenue-filters" class="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-xl bg-simsy-surface/50 border border-simsy-grey-dark/30"${isCustomer ? ' style="display:none"' : ''}>
             <svg class="w-4 h-4 text-simsy-grey flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
             <span class="text-xs text-simsy-grey font-medium">Scope</span>
             <select id="rev-filter-tenant" class="filter-select text-sm" onchange="CostView._onRevTenantChange(this.value)">
@@ -72,11 +78,11 @@
               <option value="">All Customers</option>
             </select>
           </div>
-          <div id="revenue-table">${Components.loading('Calculating revenue...')}</div>
+          <div id="revenue-table">${Components.loading(isCustomer ? 'Loading costs...' : 'Calculating revenue...')}</div>
         </div>
 
-        <!-- Revenue vs Wholesale Cost Chart -->
-        <div class="glass-card rounded-2xl p-5 mt-6">
+        <!-- Revenue vs Wholesale Cost Chart (hidden for customers) -->
+        <div id="revenue-cost-card" class="glass-card rounded-2xl p-5 mt-6"${isCustomer ? ' style="display:none"' : ''}>
           <h3 class="font-display font-semibold text-simsy-white mb-1">Revenue vs Wholesale Cost</h3>
           <p class="text-xs text-simsy-grey mb-4">Monthly bundle revenue compared to actual data wholesale cost</p>
           <div class="h-80"><canvas id="revenue-cost-chart"></canvas></div>
@@ -88,6 +94,12 @@
   }
 
   async function loadData() {
+    // Customers skip KPI and chart loading — they only see the pricing/revenue card
+    if (isCustomer) {
+      loadPricingAndRevenue();
+      return;
+    }
+
     try {
       const [summary, records] = await Promise.all([
         API.get('/usage/summary', { group_by: 'daily', from: Utils.daysAgo(30) }),
@@ -198,7 +210,7 @@
       }
 
       loadRevenue();
-      loadRevenueCostChart();
+      if (!isCustomer) loadRevenueCostChart();
     } catch (err) {
       console.error('Pricing/revenue load error:', err);
       const container = document.getElementById('revenue-table');
@@ -238,13 +250,13 @@
     } catch { revCustomersList = []; }
     populateRevenueFilters();
     loadRevenue();
-    loadRevenueCostChart();
+    if (!isCustomer) loadRevenueCostChart();
   }
 
   function onRevCustomerChange(value) {
     revFilterCustomer = value;
     loadRevenue();
-    loadRevenueCostChart();
+    if (!isCustomer) loadRevenueCostChart();
   }
 
   function renderPricingTable() {
@@ -328,7 +340,7 @@
       // Refresh revenue and chart after pricing change
       API.clearCache();
       loadRevenue();
-      loadRevenueCostChart();
+      if (!isCustomer) loadRevenueCostChart();
 
       setTimeout(() => {
         if (btn) { btn.disabled = false; btn.textContent = 'Save Prices'; btn.classList.remove('opacity-70'); }
@@ -390,11 +402,13 @@
 
     if (data.length === 0) {
       container.innerHTML = '<div class="text-center py-8">' +
-        '<p class="text-simsy-grey">No revenue data available.</p>' +
-        '<p class="text-xs text-simsy-grey mt-1">Set prices in the table above and ensure bundle instances exist.</p>' +
+        '<p class="text-simsy-grey">No ' + (isCustomer ? 'cost' : 'revenue') + ' data available.</p>' +
+        (isCustomer ? '' : '<p class="text-xs text-simsy-grey mt-1">Set prices in the table above and ensure bundle instances exist.</p>') +
         '</div>';
       return;
     }
+
+    const valueLabel = isCustomer ? 'Cost' : 'Revenue';
 
     // Group by tenant + customer + bundle (single month snapshot)
     const agg = {};
@@ -427,24 +441,31 @@
     let grandTotal = 0;
     let grandEndpoints = 0;
 
+    // Customers: hide Tenant and Customer columns (they only see their own)
+    const colCount = isCustomer ? 4 : 7;
+
     let html = '<div class="overflow-x-auto"><table class="w-full text-sm">';
-    html += '<thead><tr class="border-b border-simsy-grey-dark/30">' +
-      '<th class="text-left py-2 px-3 text-simsy-grey font-medium">Tenant</th>' +
-      '<th class="text-left py-2 px-3 text-simsy-grey font-medium">Customer</th>' +
-      '<th class="text-left py-2 px-3 text-simsy-grey font-medium">Bundle</th>' +
+    html += '<thead><tr class="border-b border-simsy-grey-dark/30">';
+    if (!isCustomer) {
+      html += '<th class="text-left py-2 px-3 text-simsy-grey font-medium">Tenant</th>' +
+        '<th class="text-left py-2 px-3 text-simsy-grey font-medium">Customer</th>';
+    }
+    html += '<th class="text-left py-2 px-3 text-simsy-grey font-medium">Bundle</th>' +
       '<th class="text-right py-2 px-3 text-simsy-grey font-medium">Endpoints</th>' +
       '<th class="text-right py-2 px-3 text-simsy-grey font-medium">Size</th>' +
       '<th class="text-right py-2 px-3 text-simsy-grey font-medium">Monthly Price</th>' +
-      '<th class="text-right py-2 px-3 text-simsy-grey font-medium">Revenue</th>' +
+      '<th class="text-right py-2 px-3 text-simsy-grey font-medium">' + valueLabel + '</th>' +
       '</tr></thead><tbody>';
 
     rows.forEach(row => {
       grandTotal += row.revenue;
       grandEndpoints += row.endpoint_count;
-      html += '<tr class="border-b border-simsy-grey-dark/10 hover:bg-simsy-surface/20">' +
-        '<td class="py-2 px-3 text-simsy-white">' + Utils.escapeHtml(row.tenant_name || '-') + '</td>' +
-        '<td class="py-2 px-3 text-simsy-grey">' + Utils.escapeHtml(row.customer_name) + '</td>' +
-        '<td class="py-2 px-3 text-simsy-grey">' + Utils.escapeHtml(row.bundle_name) + '</td>' +
+      html += '<tr class="border-b border-simsy-grey-dark/10 hover:bg-simsy-surface/20">';
+      if (!isCustomer) {
+        html += '<td class="py-2 px-3 text-simsy-white">' + Utils.escapeHtml(row.tenant_name || '-') + '</td>' +
+          '<td class="py-2 px-3 text-simsy-grey">' + Utils.escapeHtml(row.customer_name) + '</td>';
+      }
+      html += '<td class="py-2 px-3 text-simsy-grey">' + Utils.escapeHtml(row.bundle_name) + '</td>' +
         '<td class="py-2 px-3 text-right text-simsy-white">' + Utils.formatNumber(row.endpoint_count) + '</td>' +
         '<td class="py-2 px-3 text-right text-simsy-grey">' + row.allowance_gb.toFixed(0) + ' GB</td>' +
         '<td class="py-2 px-3 text-right text-simsy-grey">' + (row.monthly_price > 0 ? Utils.formatCurrency(row.monthly_price) : '<span class="text-simsy-grey/50">not set</span>') + '</td>' +
@@ -454,8 +475,9 @@
     });
 
     // Grand total
+    const totalColSpan = isCustomer ? 1 : 3;
     html += '<tr class="bg-simsy-orange/10 border-t-2 border-simsy-orange/30">' +
-      '<td colspan="3" class="py-3 px-3 text-right text-simsy-white font-bold">Total</td>' +
+      '<td colspan="' + totalColSpan + '" class="py-3 px-3 text-right text-simsy-white font-bold">Total</td>' +
       '<td class="py-3 px-3 text-right text-simsy-white font-bold">' + Utils.formatNumber(grandEndpoints) + '</td>' +
       '<td class="py-3 px-3"></td>' +
       '<td class="py-3 px-3"></td>' +

@@ -69,8 +69,21 @@ const Router = {
     return p;
   },
 
+  /** Views accessible to customer-role users */
+  _customerViews: ['overview', 'usage', 'instances', 'endpoints', 'roaming', 'cost'],
+
   _onHashChange() {
-    const hash = window.location.hash.replace('#', '') || 'overview';
+    let hash = window.location.hash.replace('#', '') || 'overview';
+
+    // Customer role: restrict to allowed views, default to roaming
+    if (Auth.getRole() === 'customer') {
+      if (!this._customerViews.includes(hash)) {
+        hash = 'overview';
+        window.location.hash = '#overview';
+        return; // hashchange will fire again
+      }
+    }
+
     this._renderView(hash);
   },
 

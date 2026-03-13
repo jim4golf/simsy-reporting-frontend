@@ -4,6 +4,8 @@
  * home vs roaming split, monthly wholesale cost by customer.
  */
 (() => {
+  let showAllMonths = false;
+
   async function render(container) {
     container.innerHTML = Components.viewHeader({
       title: 'Roaming Analytics',
@@ -28,17 +30,21 @@
           <div class="h-48 flex items-center justify-center"><canvas id="roaming-split-chart"></canvas></div>
           <div id="roaming-split-legend" class="mt-4 space-y-2"></div>
         </div>
-        <div class="xl:col-span-2 glass-card rounded-2xl p-5">
+        <div id="wholesale-cost-card" class="xl:col-span-2 glass-card rounded-2xl p-5"${Auth.getRole() === 'customer' ? ' style="display:none"' : ''}>
           <h3 class="font-display font-semibold text-simsy-white mb-1">Wholesale Network Cost</h3>
           <p class="text-xs text-simsy-grey mb-4">Buy-side cost per country (what S-IMSY pays network operators)</p>
           <div id="roaming-cost-table">${Components.loading('Analysing costs...')}</div>
         </div>
       </div>
-      <div class="glass-card rounded-2xl p-5 mb-6">
+      <div id="monthly-wholesale-card" class="glass-card rounded-2xl p-5 mb-6"${Auth.getRole() === 'customer' ? ' style="display:none"' : ''}>
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="font-display font-semibold text-simsy-white">Monthly Wholesale Cost by Customer</h3>
             <p class="text-xs text-simsy-grey mt-0.5">Aggregated buy-side costs — compare against bundle revenue for profitability</p>
+          </div>
+          <div class="tab-group">
+            <button class="tab-btn ${showAllMonths ? '' : 'active'}" onclick="RoamingView.setMonthRange(false)">Last 6 Months</button>
+            <button class="tab-btn ${showAllMonths ? 'active' : ''}" onclick="RoamingView.setMonthRange(true)">Show All</button>
           </div>
         </div>
         <div id="cost-by-customer">${Components.loading('Loading cost data...')}</div>
@@ -52,10 +58,12 @@
     try {
       const fp = Filters.getParams();
 
+      const costMonths = showAllMonths ? 24 : 6;
+
       // Fetch roaming aggregation and cost data in parallel (server-side)
       const [roaming, costs] = await Promise.all([
         API.get('/usage/roaming', { limit: 10, ...fp }),
-        API.get('/usage/costs', { months: 6, ...fp }),
+        API.get('/usage/costs', { months: costMonths, ...fp }, showAllMonths),
       ]);
 
       // ── Aggregate countries by normalised name (e.g. merge UK variants) ──
@@ -166,71 +174,87 @@
       }
 
       // ── Monthly Wholesale Cost by Customer ──
-      const costContainer = document.getElementById('cost-by-customer');
-      if (costContainer) {
-        const monthlyTotals = costs.monthly_totals || [];
-        const byCustomer = costs.by_customer || [];
-
-        if (monthlyTotals.length === 0) {
-          costContainer.innerHTML = Components.emptyState('No cost data available');
-        } else {
-          // Build monthly totals table
-          const monthRows = monthlyTotals.map(m => {
-            const dt = new Date(m.month + 'T00:00:00');
-            const label = dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-            // Get customer breakdown for this month
-            const monthCustomers = byCustomer
-              .filter(c => c.month === m.month)
-              .sort((a, b) => b.wholesale_cost - a.wholesale_cost);
-
-            return { month: label, monthKey: m.month, cost: m.wholesale_cost, bytes: m.total_bytes, records: m.record_count, customers: monthCustomers };
-          });
-
-          let html = '<div class="space-y-4">';
-
-          monthRows.forEach(m => {
-            html += `
-              <div class="border border-simsy-grey-dark/20 rounded-xl overflow-hidden">
-                <div class="flex items-center justify-between px-4 py-3 bg-simsy-surface/50 cursor-pointer" onclick="RoamingView.toggleMonth(this)">
-                  <div class="flex items-center gap-3">
-                    <svg class="w-4 h-4 text-simsy-grey transition-transform month-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    <span class="font-display font-semibold text-simsy-white">${Utils.escapeHtml(m.month)}</span>
-                  </div>
-                  <div class="flex items-center gap-6 text-sm">
-                    <span class="text-simsy-grey">${Utils.formatBytes(m.bytes)}</span>
-                    <span class="text-simsy-white font-medium">${Utils.formatCurrency(m.cost)}</span>
-                  </div>
-                </div>
-                <div class="month-detail hidden px-4 pb-3">`;
-
-            if (m.customers.length > 0) {
-              html += Components.table({
-                columns: [
-                  { label: 'Customer', render: r => Utils.escapeHtml(r.customer) },
-                  { label: 'Data', render: r => Utils.formatBytes(r.total_bytes) },
-                  { label: 'Wholesale Cost', render: r => Utils.formatCurrency(r.wholesale_cost) },
-                  { label: 'Records', render: r => Utils.formatNumber(r.record_count) },
-                  { label: 'Cost/MB', render: r => {
-                    const mb = r.total_bytes / (1024 * 1024);
-                    return mb > 0 ? Utils.formatCurrency(r.wholesale_cost / mb) : '-';
-                  }},
-                ],
-                rows: m.customers,
-              });
-            } else {
-              html += '<p class="text-sm text-simsy-grey py-2">No customer breakdown available</p>';
-            }
-
-            html += '</div></div>';
-          });
-
-          html += '</div>';
-          costContainer.innerHTML = html;
-        }
-      }
+      renderMonthlyCosts(costs);
     } catch (err) {
       console.error('Roaming data error:', err);
     }
+  }
+
+  async function reloadMonthlyCosts() {
+    const costContainer = document.getElementById('cost-by-customer');
+    if (!costContainer) return;
+    costContainer.innerHTML = Components.loading('Loading cost data...');
+
+    try {
+      const fp = Filters.getParams();
+      const costMonths = showAllMonths ? 24 : 6;
+      const costs = await API.get('/usage/costs', { months: costMonths, ...fp }, showAllMonths);
+      renderMonthlyCosts(costs);
+    } catch (err) {
+      costContainer.innerHTML = Components.errorState('Failed to load cost data: ' + err.message);
+    }
+  }
+
+  function renderMonthlyCosts(costs) {
+    const costContainer = document.getElementById('cost-by-customer');
+    if (!costContainer) return;
+
+    const monthlyTotals = costs.monthly_totals || [];
+    const byCustomer = costs.by_customer || [];
+
+    if (monthlyTotals.length === 0) {
+      costContainer.innerHTML = Components.emptyState('No cost data available');
+      return;
+    }
+
+    const monthRows = monthlyTotals.map(m => {
+      const dt = new Date(m.month + 'T00:00:00');
+      const label = dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      const monthCustomers = byCustomer
+        .filter(c => c.month === m.month)
+        .sort((a, b) => b.wholesale_cost - a.wholesale_cost);
+      return { month: label, monthKey: m.month, cost: m.wholesale_cost, bytes: m.total_bytes, records: m.record_count, customers: monthCustomers };
+    });
+
+    let html = '<div class="space-y-4">';
+    monthRows.forEach(m => {
+      html += `
+        <div class="border border-simsy-grey-dark/20 rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 bg-simsy-surface/50 cursor-pointer" onclick="RoamingView.toggleMonth(this)">
+            <div class="flex items-center gap-3">
+              <svg class="w-4 h-4 text-simsy-grey transition-transform month-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              <span class="font-display font-semibold text-simsy-white">${Utils.escapeHtml(m.month)}</span>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+              <span class="text-simsy-grey">${Utils.formatBytes(m.bytes)}</span>
+              <span class="text-simsy-white font-medium">${Utils.formatCurrency(m.cost)}</span>
+            </div>
+          </div>
+          <div class="month-detail hidden px-4 pb-3">`;
+
+      if (m.customers.length > 0) {
+        html += Components.table({
+          columns: [
+            { label: 'Customer', render: r => Utils.escapeHtml(r.customer) },
+            { label: 'Data', render: r => Utils.formatBytes(r.total_bytes) },
+            { label: 'Wholesale Cost', render: r => Utils.formatCurrency(r.wholesale_cost) },
+            { label: 'Records', render: r => Utils.formatNumber(r.record_count) },
+            { label: 'Cost/MB', render: r => {
+              const mb = r.total_bytes / (1024 * 1024);
+              return mb > 0 ? Utils.formatCurrency(r.wholesale_cost / mb) : '-';
+            }},
+          ],
+          rows: m.customers,
+        });
+      } else {
+        html += '<p class="text-sm text-simsy-grey py-2">No customer breakdown available</p>';
+      }
+
+      html += '</div></div>';
+    });
+
+    html += '</div>';
+    costContainer.innerHTML = html;
   }
 
   // Public API
@@ -246,6 +270,15 @@
         detail.classList.toggle('hidden');
         if (chevron) chevron.style.transform = detail.classList.contains('hidden') ? '' : 'rotate(90deg)';
       }
+    },
+    setMonthRange(all) {
+      showAllMonths = all;
+      // Update toggle button states
+      document.querySelectorAll('#monthly-wholesale-card .tab-btn').forEach(btn => {
+        const isAllBtn = btn.textContent.trim() === 'Show All';
+        btn.classList.toggle('active', isAllBtn === all);
+      });
+      reloadMonthlyCosts();
     },
   };
 
